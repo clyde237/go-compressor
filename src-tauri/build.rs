@@ -10,7 +10,12 @@ fn main() {
     if !binaries_dir.exists() {
         let _ = std::fs::create_dir_all(binaries_dir);
     }
-    for bin in ["ffmpeg", "ffprobe"] {
+    for bin in [
+        "gocompressor-ffmpeg",
+        "gocompressor-ffprobe",
+        "ffmpeg",
+        "ffprobe",
+    ] {
         let filename = format!("{bin}-{target}{ext}");
         let target_path = binaries_dir.join(&filename);
         if !target_path.exists() {

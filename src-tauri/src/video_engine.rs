@@ -111,9 +111,14 @@ pub enum VideoEvent {
 
 /// Résout le chemin absolu ou relatif vers l'exécutable FFmpeg
 pub fn resolve_ffmpeg_path() -> PathBuf {
-    // 1. Dossier bin/ à la racine du projet ou parent
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    for bin_cand in [format!("bin/ffmpeg{ext}"), format!("../bin/ffmpeg{ext}")] {
+    // 1. Dossier bin/ à la racine du projet ou parent
+    for bin_cand in [
+        format!("bin/gocompressor-ffmpeg{ext}"),
+        format!("bin/ffmpeg{ext}"),
+        format!("../bin/gocompressor-ffmpeg{ext}"),
+        format!("../bin/ffmpeg{ext}"),
+    ] {
         let p = PathBuf::from(bin_cand);
         if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
             return p;
@@ -134,6 +139,9 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
     };
 
     for sidecar_cand in [
+        format!("src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
         format!("src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
         format!("binaries/ffmpeg-{host_triple}{ext}"),
         format!("../src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
@@ -149,27 +157,39 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
         .ok()
         .and_then(|e| e.parent().map(|p| p.to_path_buf()))
     {
-        let exe_sidecar = exe_dir.join(format!("ffmpeg-{host_triple}{ext}"));
-        if exe_sidecar.exists()
-            && exe_sidecar
-                .metadata()
-                .map(|m| m.len() > 100)
-                .unwrap_or(false)
-        {
-            return exe_sidecar;
-        }
-        let simple_sidecar = exe_dir.join(format!("ffmpeg{ext}"));
-        if simple_sidecar.exists()
-            && simple_sidecar
-                .metadata()
-                .map(|m| m.len() > 100)
-                .unwrap_or(false)
-        {
-            return simple_sidecar;
+        for exe_sidecar_name in [
+            format!("gocompressor-ffmpeg-{host_triple}{ext}"),
+            format!("gocompressor-ffmpeg{ext}"),
+            format!("ffmpeg-{host_triple}{ext}"),
+            format!("ffmpeg{ext}"),
+        ] {
+            let exe_sidecar = exe_dir.join(exe_sidecar_name);
+            if exe_sidecar.exists()
+                && exe_sidecar
+                    .metadata()
+                    .map(|m| m.len() > 100)
+                    .unwrap_or(false)
+            {
+                return exe_sidecar;
+            }
         }
     }
 
-    // 4. Fallback vers le PATH système
+    // 4. Fallback vers le PATH système (binaire préfixé gocompressor ou ffmpeg natif)
+    let scoped_bin = if cfg!(windows) {
+        "gocompressor-ffmpeg.exe"
+    } else {
+        "gocompressor-ffmpeg"
+    };
+    if std::process::Command::new(scoped_bin)
+        .arg("-version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return PathBuf::from(scoped_bin);
+    }
+
     if cfg!(windows) {
         PathBuf::from("ffmpeg.exe")
     } else {
@@ -180,7 +200,12 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
 /// Résout le chemin absolu ou relatif vers l'exécutable ffprobe
 pub fn resolve_ffprobe_path() -> PathBuf {
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    for bin_cand in [format!("bin/ffprobe{ext}"), format!("../bin/ffprobe{ext}")] {
+    for bin_cand in [
+        format!("bin/gocompressor-ffprobe{ext}"),
+        format!("bin/ffprobe{ext}"),
+        format!("../bin/gocompressor-ffprobe{ext}"),
+        format!("../bin/ffprobe{ext}"),
+    ] {
         let p = PathBuf::from(bin_cand);
         if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
             return p;
@@ -200,6 +225,9 @@ pub fn resolve_ffprobe_path() -> PathBuf {
     };
 
     for sidecar_cand in [
+        format!("src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
+        format!("binaries/gocompressor-ffprobe-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
         format!("src-tauri/binaries/ffprobe-{host_triple}{ext}"),
         format!("binaries/ffprobe-{host_triple}{ext}"),
         format!("../src-tauri/binaries/ffprobe-{host_triple}{ext}"),
@@ -214,24 +242,36 @@ pub fn resolve_ffprobe_path() -> PathBuf {
         .ok()
         .and_then(|e| e.parent().map(|p| p.to_path_buf()))
     {
-        let exe_sidecar = exe_dir.join(format!("ffprobe-{host_triple}{ext}"));
-        if exe_sidecar.exists()
-            && exe_sidecar
-                .metadata()
-                .map(|m| m.len() > 100)
-                .unwrap_or(false)
-        {
-            return exe_sidecar;
+        for exe_sidecar_name in [
+            format!("gocompressor-ffprobe-{host_triple}{ext}"),
+            format!("gocompressor-ffprobe{ext}"),
+            format!("ffprobe-{host_triple}{ext}"),
+            format!("ffprobe{ext}"),
+        ] {
+            let exe_sidecar = exe_dir.join(exe_sidecar_name);
+            if exe_sidecar.exists()
+                && exe_sidecar
+                    .metadata()
+                    .map(|m| m.len() > 100)
+                    .unwrap_or(false)
+            {
+                return exe_sidecar;
+            }
         }
-        let simple_sidecar = exe_dir.join(format!("ffprobe{ext}"));
-        if simple_sidecar.exists()
-            && simple_sidecar
-                .metadata()
-                .map(|m| m.len() > 100)
-                .unwrap_or(false)
-        {
-            return simple_sidecar;
-        }
+    }
+
+    let scoped_bin = if cfg!(windows) {
+        "gocompressor-ffprobe.exe"
+    } else {
+        "gocompressor-ffprobe"
+    };
+    if std::process::Command::new(scoped_bin)
+        .arg("-version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return PathBuf::from(scoped_bin);
     }
 
     if cfg!(windows) {

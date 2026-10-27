@@ -16,8 +16,13 @@ fn find_ffmpeg() -> Option<PathBuf> {
     let ext = if cfg!(windows) { ".exe" } else { "" };
 
     let candidates = [
+        format!("bin/gocompressor-ffmpeg{ext}"),
         format!("bin/ffmpeg{ext}"),
+        format!("../bin/gocompressor-ffmpeg{ext}"),
         format!("../bin/ffmpeg{ext}"),
+        format!("binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
         format!("binaries/ffmpeg-{host_triple}{ext}"),
         format!("src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
         format!("../src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
