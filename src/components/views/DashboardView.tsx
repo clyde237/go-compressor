@@ -13,6 +13,7 @@ import {
   IconPlay,
   IconCheck,
   IconClose,
+  IconFolder,
 } from '../common/Icons';
 import { formatBytes, calculateGainPercent } from '../../utils/formatters';
 
@@ -43,6 +44,8 @@ export interface DashboardViewProps {
   onStart: () => void;
   onPause: () => void;
   onDownloadZip: () => void;
+  onOpenExportFolder?: () => void;
+  onSaveSingleFile?: (item: MediaItem) => void;
   crf: number;
   exportMode: ExportMode;
 }
@@ -73,6 +76,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onStart,
   onPause,
   onDownloadZip,
+  onOpenExportFolder,
+  onSaveSingleFile,
   crf,
   exportMode,
 }) => {
@@ -84,9 +89,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const currentQuotaPct = Math.min(100, Math.round((currentItems.length / currentQuotaMax) * 100));
 
   const pendingCount = items.filter((f) => f.status !== 'done').length;
-  const doneItems = items.filter((f) => f.status === 'done');
+  // Calculs KPI contextuels à la file en cours pour éviter la confusion entre photos et vidéos
+  const doneCurrentItems = currentItems.filter((f) => f.status === 'done');
+  const allDoneItems = items.filter((f) => f.status === 'done');
+  const doneItems = doneCurrentItems.length > 0 ? doneCurrentItems : allDoneItems;
 
-  // Calculs KPI pour le rapport de compression direct
   const sumBefore = doneItems.reduce((acc, f) => acc + f.sizeBytes, 0);
   const sumAfter = doneItems.reduce((acc, f) => acc + (f.finalSizeBytes ?? f.sizeBytes), 0);
   const totalSavedBytes = Math.max(0, sumBefore - sumAfter);
@@ -304,9 +311,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </span>
 
                     {isDone && (
-                      <span className="gc-check" style={{ marginLeft: 'auto' }}>
-                        <IconCheck />
-                      </span>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 'auto' }}>
+                        {onSaveSingleFile && (
+                          <button
+                            type="button"
+                            className="gc-iconbtn"
+                            title={`Enregistrer ${item.name}`}
+                            aria-label={`Enregistrer ${item.name}`}
+                            onClick={() => onSaveSingleFile(item)}
+                          >
+                            <IconDownload size={16} />
+                          </button>
+                        )}
+                        <span className="gc-check">
+                          <IconCheck />
+                        </span>
+                      </div>
                     )}
 
                     <button
@@ -393,19 +413,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
 
-            {/* Bouton de Téléchargement du lot */}
-            <Button
-              onClick={onDownloadZip}
-              style={{
-                display: 'inline-flex',
-                gap: '8px',
-                alignItems: 'center',
-                padding: '12px 20px',
-              }}
-            >
-              <IconDownload />
-              <span>Télécharger le lot (.ZIP)</span>
-            </Button>
+            {/* Actions de récupération du média / lot : pas d'archive ZIP pour moins de 5 fichiers */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {doneItems.length < 5 ? (
+                <>
+                  {doneItems.length === 1 && (
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        onSaveSingleFile ? onSaveSingleFile(doneItems[0]) : onDownloadZip()
+                      }
+                      style={{
+                        display: 'inline-flex',
+                        gap: '8px',
+                        alignItems: 'center',
+                        padding: '10px 16px',
+                      }}
+                    >
+                      <IconDownload />
+                      <span>Enregistrer sous…</span>
+                    </Button>
+                  )}
+                  <Button
+                    onClick={onOpenExportFolder || onBrowseFolder}
+                    style={{
+                      display: 'inline-flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '10px 18px',
+                    }}
+                  >
+                    <IconFolder />
+                    <span>
+                      {doneItems.length === 1 ? "Ouvrir l'emplacement" : "Ouvrir le dossier d'export"}
+                    </span>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={onOpenExportFolder || onBrowseFolder}
+                    style={{
+                      display: 'inline-flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '10px 16px',
+                    }}
+                  >
+                    <IconFolder />
+                    <span>Ouvrir le dossier</span>
+                  </Button>
+                  <Button
+                    onClick={onDownloadZip}
+                    style={{
+                      display: 'inline-flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '10px 20px',
+                    }}
+                  >
+                    <IconDownload />
+                    <span>Télécharger le lot (.ZIP)</span>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

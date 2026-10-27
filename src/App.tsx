@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BatchConfig, ExportMode } from './types/ipc';
 import { HeaderTabs, TabId } from './components/layout/HeaderTabs';
 import { DashboardView, FolderOption, MediaTab } from './components/views/DashboardView';
@@ -40,28 +40,17 @@ export function App() {
     exportDirectory,
     alert,
     clearAlert,
-    addFilesFromPaths,
     openNativeFileDialog,
     selectNativeExportDirectory,
     downloadZipArchive,
+    openExportFolder,
+    saveSingleFile,
     removeItem,
     clearQueue,
     startCompression,
     pauseCompression,
     setExportDirectory,
   } = useMediaBatch();
-
-  // Chargement d'exemples initiaux au premier démarrage si la file est vide
-  useEffect(() => {
-    addFilesFromPaths(
-      ['/exemples/photo_01.jpg', '/exemples/photo_02.png'],
-      'images'
-    );
-    addFilesFromPaths(
-      ['/exemples/clip_01.mp4'],
-      'videos'
-    );
-  }, [addFilesFromPaths]);
 
   // Synchronisation du slider cible entre Dashboard et Settings
   const handleTargetChange = (newKo: number) => {
@@ -137,6 +126,8 @@ export function App() {
             onStart={() => startCompression(settings)}
             onPause={pauseCompression}
             onDownloadZip={downloadZipArchive}
+            onOpenExportFolder={openExportFolder}
+            onSaveSingleFile={saveSingleFile}
             crf={settings.crf}
             exportMode={settings.export_mode}
           />

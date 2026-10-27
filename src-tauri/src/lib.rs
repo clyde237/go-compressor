@@ -75,6 +75,88 @@ fn get_system_metrics(
     Ok(metrics_engine::get_current_metrics(&mut sys))
 }
 
+/// Métadonnées réelles d'un fichier lues sur le système de fichiers
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct MediaFileInfo {
+    pub path: String,
+    pub name: String,
+    pub size_bytes: u64,
+    pub extension: String,
+}
+
+/// Inspecte une liste de chemins de fichiers et retourne leurs métadonnées réelles depuis le système de fichiers
+#[tauri::command]
+fn inspect_media_files(paths: Vec<String>) -> Result<Vec<MediaFileInfo>, String> {
+    let mut results = Vec::with_capacity(paths.len());
+    for p in paths {
+        let path = Path::new(&p);
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("fichier")
+            .to_string();
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_uppercase();
+        let size_bytes = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        results.push(MediaFileInfo {
+            path: p,
+            name,
+            size_bytes,
+            extension: ext,
+        });
+    }
+    Ok(results)
+}
+
+/// Ouvre le dossier d'export ou le fichier dans l'explorateur natif de l'OS
+#[tauri::command]
+fn open_directory_in_explorer(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    let target = if p.is_file() {
+        p.parent().unwrap_or(p)
+    } else {
+        p
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Enregistre une copie d'un fichier optimisé vers une destination choisie
+#[tauri::command]
+fn save_file_to(source: String, destination: String) -> Result<(), String> {
+    let src = Path::new(&source);
+    let dst = Path::new(&destination);
+    if let Some(parent) = dst.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::copy(src, dst).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Génère une archive ZIP contenant tous les fichiers spécifiés
 #[tauri::command]
 fn create_zip_archive(files: Vec<String>, destination: String) -> Result<u64, String> {
@@ -220,7 +302,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_system_metrics,
             create_zip_archive,
-            process_media_batch
+            process_media_batch,
+            inspect_media_files,
+            open_directory_in_explorer,
+            save_file_to
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

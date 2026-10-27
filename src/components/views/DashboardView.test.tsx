@@ -124,11 +124,67 @@ describe('DashboardView Component', () => {
     expect(screen.getByText(/video_test\.mp4/i)).toBeDefined();
   });
 
-  it("doit appeler onDownloadZip lorsqu'on clique sur le bouton de téléchargement", () => {
-    const onDownloadZip = vi.fn();
+  it("doit proposer l'enregistrement direct ou l'ouverture du dossier si moins de 5 fichiers sont traités", () => {
+    const onOpenExportFolder = vi.fn();
+    const onSaveSingleFile = vi.fn();
     render(
       <DashboardView
         items={MOCK_ITEMS}
+        activeMediaTab="images"
+        onMediaTabChange={vi.fn()}
+        folders={[{ label: 'Dossier 1', value: '0' }]}
+        destValue="0"
+        onDestChange={vi.fn()}
+        onBrowseFolder={vi.fn()}
+        targetKo={1104}
+        onTargetChange={vi.fn()}
+        onAddBatch={vi.fn()}
+        onClearQueue={vi.fn()}
+        onRemoveItem={vi.fn()}
+        running={false}
+        hasRun={true}
+        cpu={8}
+        ram={2.4}
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onDownloadZip={vi.fn()}
+        onOpenExportFolder={onOpenExportFolder}
+        onSaveSingleFile={onSaveSingleFile}
+        crf={26}
+        exportMode="copy"
+      />
+    );
+
+    const openBtn = screen.getByRole('button', { name: /ouvrir l'emplacement/i });
+    const saveBtn = screen.getByRole('button', { name: /enregistrer sous…/i });
+
+    expect(openBtn).toBeDefined();
+    expect(saveBtn).toBeDefined();
+
+    fireEvent.click(openBtn);
+    expect(onOpenExportFolder).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(saveBtn);
+    expect(onSaveSingleFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("doit proposer le téléchargement groupé ZIP pour un lot de 5 fichiers ou plus", () => {
+    const onDownloadZip = vi.fn();
+    const fiveItems: MediaItem[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `img_${i}`,
+      name: `photo_${i}.jpg`,
+      path: `/path/photo_${i}.jpg`,
+      kind: 'image',
+      format: 'JPG',
+      sizeBytes: 10 * 1024 * 1024,
+      finalSizeBytes: 1.5 * 1024 * 1024,
+      progress: 100,
+      status: 'done',
+    }));
+
+    render(
+      <DashboardView
+        items={fiveItems}
         activeMediaTab="images"
         onMediaTabChange={vi.fn()}
         folders={[{ label: 'Dossier 1', value: '0' }]}
@@ -152,8 +208,8 @@ describe('DashboardView Component', () => {
       />
     );
 
-    const downloadBtn = screen.getByRole('button', { name: /télécharger le lot \(\.zip\)/i });
-    fireEvent.click(downloadBtn);
+    const downloadZipBtn = screen.getByRole('button', { name: /télécharger le lot \(\.zip\)/i });
+    fireEvent.click(downloadZipBtn);
 
     expect(onDownloadZip).toHaveBeenCalledTimes(1);
   });

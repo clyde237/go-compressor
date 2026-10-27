@@ -38,7 +38,18 @@ pub fn resolve_export_path(
             } else {
                 format!("{file_stem}.{extension}")
             };
-            output_dir.join(file_name)
+            let target = output_dir.join(&file_name);
+            // Protection non-destructive CDC §4.4 : ne jamais écraser le fichier original
+            if target == input_path {
+                let safe_name = if extension.is_empty() {
+                    format!("{file_stem}_opt")
+                } else {
+                    format!("{file_stem}_opt.{extension}")
+                };
+                output_dir.join(safe_name)
+            } else {
+                target
+            }
         }
         ExportMode::Suffix => {
             let parent = input_path.parent().unwrap_or(output_dir);
@@ -109,6 +120,14 @@ mod tests {
         let dest = Path::new("/home/user/export");
         let out = resolve_export_path(input, dest, &ExportMode::Copy, None);
         assert_eq!(out, PathBuf::from("/home/user/export/vacances.jpg"));
+    }
+
+    #[test]
+    fn test_resolve_export_path_copy_non_destructive_collision() {
+        let input = Path::new("/home/user/export/vacances.jpg");
+        let dest = Path::new("/home/user/export");
+        let out = resolve_export_path(input, dest, &ExportMode::Copy, None);
+        assert_eq!(out, PathBuf::from("/home/user/export/vacances_opt.jpg"));
     }
 
     #[test]

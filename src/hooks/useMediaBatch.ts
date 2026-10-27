@@ -18,6 +18,8 @@ export interface UseMediaBatchResult {
   openNativeFileDialog: (kind: 'images' | 'videos') => Promise<void>;
   selectNativeExportDirectory: () => Promise<void>;
   downloadZipArchive: () => Promise<void>;
+  openExportFolder: (customPath?: string) => Promise<void>;
+  saveSingleFile: (item: MediaItem) => Promise<void>;
   removeItem: (id: string) => void;
   clearQueue: (kind?: 'images' | 'videos') => void;
   startCompression: (config: BatchConfig) => Promise<BatchReport | null>;
@@ -45,10 +47,12 @@ export function useMediaBatch(): UseMediaBatchResult {
     setAlert(null);
   }, []);
 
-  // Ajout de fichiers par chemins avec contrôle des quotas
+  // Ajout de fichiers par chemins avec contrôle des quotas et inspection réelle des métadonnées
   const addFilesFromPaths = useCallback(
     (paths: string[], kind: 'images' | 'videos') => {
       if (paths.length === 0) return;
+
+      let shouldBlock = false;
 
       setFiles((prev) => {
         const currentImgs = prev.filter((f) => f.kind === 'image').length;
@@ -61,6 +65,7 @@ export function useMediaBatch(): UseMediaBatchResult {
               body: `Limite dépassée : ${QUOTAS.MAX_VIDEOS} vidéos maximum par lot.`,
               detail: `Vous tentez d'ajouter ${paths.length} vidéo(s) alors que la file en contient déjà ${currentVids}. Le quota strict est fixé à ${QUOTAS.MAX_VIDEOS} pour protéger la mémoire vive et le processeur.`,
             });
+            shouldBlock = true;
             return prev;
           }
         } else {
@@ -70,6 +75,7 @@ export function useMediaBatch(): UseMediaBatchResult {
               body: `Limite dépassée : ${QUOTAS.MAX_IMAGES} images maximum par lot.`,
               detail: `Vous tentez d'ajouter ${paths.length} photo(s) alors que la file en contient déjà ${currentImgs}. Le quota maximal par lot est de ${QUOTAS.MAX_IMAGES}.`,
             });
+            shouldBlock = true;
             return prev;
           }
         }
@@ -86,7 +92,7 @@ export function useMediaBatch(): UseMediaBatchResult {
             path: p,
             kind: kind === 'images' ? 'image' : 'video',
             format: ext,
-            sizeBytes: 15 * 1024 * 1024, // Valeur initiale par défaut si métadonnée indisponible
+            sizeBytes: 0,
             progress: 0,
             status: 'wait',
           };
@@ -94,6 +100,27 @@ export function useMediaBatch(): UseMediaBatchResult {
 
         return [...prev, ...newItems];
       });
+
+      if (shouldBlock) return;
+
+      // Sonde asynchrone des métadonnées réelles via la commande Rust
+      if (isTauriEnvironment()) {
+        invoke<{ path: string; name: string; size_bytes: number; extension: string }[]>(
+          'inspect_media_files',
+          { paths }
+        )
+          .then((inspected) => {
+            setFiles((prev) =>
+              prev.map((f) => {
+                const info = inspected.find((item) => item.path === f.path);
+                return info ? { ...f, sizeBytes: info.size_bytes } : f;
+              })
+            );
+          })
+          .catch(() => {
+            // Fallback silencieux en cas d'erreur de sonde
+          });
+      }
     },
     []
   );
@@ -161,9 +188,12 @@ export function useMediaBatch(): UseMediaBatchResult {
     }
   }, []);
 
-  // Téléchargement d'une archive ZIP du lot
+  // Téléchargement d'une archive ZIP du lot (pour les lots groupés de 5 fichiers et plus)
   const downloadZipArchive = useCallback(async () => {
-    const donePaths = files.filter((f) => f.status === 'done').map((f) => f.path);
+    // Utiliser impérativement les chemins de sortie des fichiers optimisés
+    const donePaths = files
+      .filter((f) => f.status === 'done')
+      .map((f) => f.outputPath || f.path);
 
     if (donePaths.length === 0) {
       setAlert({
@@ -195,7 +225,7 @@ export function useMediaBatch(): UseMediaBatchResult {
 
         setAlert({
           title: 'Archive enregistrée avec succès',
-          body: `L'archive a été enregistrée sous : ${savePath}`,
+          body: `L'archive ZIP (${donePaths.length} fichier(s) optimisé(s)) a été enregistrée sous : ${savePath}`,
         });
       }
     } catch (err) {
@@ -205,6 +235,74 @@ export function useMediaBatch(): UseMediaBatchResult {
       });
     }
   }, [files]);
+
+  // Ouverture du dossier d'export ou du répertoire du média optimisé dans l'explorateur natif
+  const openExportFolder = useCallback(async (customPath?: string) => {
+    const defaultExport = exportDirectory || (files.find((f) => f.outputPath)?.outputPath) || '';
+    const target = customPath || defaultExport;
+
+    if (!target) {
+      setAlert({
+        title: 'Emplacement introuvable',
+        body: "Aucun dossier d'export ou fichier optimisé n'est disponible.",
+      });
+      return;
+    }
+
+    if (isTauriEnvironment()) {
+      try {
+        await invoke('open_directory_in_explorer', { path: target });
+      } catch (err) {
+        setAlert({
+          title: "Impossible d'ouvrir le dossier",
+          body: String(err),
+        });
+      }
+    } else {
+      setAlert({
+        title: 'Ouverture du dossier',
+        body: `Ouverture simulée du dossier : ${target}`,
+      });
+    }
+  }, [exportDirectory, files]);
+
+  // Enregistrement individuel d'un fichier optimisé
+  const saveSingleFile = useCallback(async (item: MediaItem) => {
+    const sourcePath = item.outputPath || item.path;
+
+    if (!isTauriEnvironment()) {
+      setAlert({
+        title: 'Fichier enregistré',
+        body: `Téléchargement individuel simulé pour ${item.name}`,
+      });
+      return;
+    }
+
+    try {
+      const ext = item.format.toLowerCase();
+      const savePath = await save({
+        defaultPath: item.name,
+        filters: [{ name: `Média ${item.format}`, extensions: [ext] }],
+      });
+
+      if (savePath) {
+        await invoke('save_file_to', {
+          source: sourcePath,
+          destination: savePath,
+        });
+
+        setAlert({
+          title: 'Fichier enregistré avec succès',
+          body: `Le fichier optimisé a été enregistré sous : ${savePath}`,
+        });
+      }
+    } catch (err) {
+      setAlert({
+        title: "Erreur lors de l'enregistrement",
+        body: String(err),
+      });
+    }
+  }, []);
 
   const removeItem = useCallback((id: string) => {
     setFiles((prev) => prev.filter((item) => item.id !== id));
@@ -281,7 +379,9 @@ export function useMediaBatch(): UseMediaBatchResult {
                 ...f,
                 status: reportItem.success ? 'done' : 'error',
                 progress: 100,
+                sizeBytes: reportItem.original_size_bytes > 0 ? reportItem.original_size_bytes : f.sizeBytes,
                 finalSizeBytes: reportItem.output_size_bytes,
+                outputPath: reportItem.output_path,
                 errorMessage: reportItem.error_message,
               };
             }
@@ -374,6 +474,8 @@ export function useMediaBatch(): UseMediaBatchResult {
     openNativeFileDialog,
     selectNativeExportDirectory,
     downloadZipArchive,
+    openExportFolder,
+    saveSingleFile,
     removeItem,
     clearQueue,
     startCompression,

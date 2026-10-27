@@ -12,8 +12,9 @@ export interface MediaItem {
   path: string;
   kind: MediaKind;
   format: string; // 'JPG' | 'PNG' | 'WebP' | 'MP4' | etc.
-  sizeBytes: number; // Taille initiale
+  sizeBytes: number; // Taille initiale réelle
   finalSizeBytes?: number; // Taille finale après optimisation
+  outputPath?: string; // Chemin absolu du fichier optimisé sur le disque
   progress: number; // 0 à 100
   status: FileStatus;
   errorMessage?: string;
