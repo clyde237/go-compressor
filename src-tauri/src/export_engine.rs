@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
+use zip::write::SimpleFileOptions;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
@@ -151,7 +151,8 @@ pub fn create_zip_archive(files: &[PathBuf], output_zip_path: &Path) -> Result<u
         }
         seen_names.insert(entry_name.clone());
 
-        zip.start_file(entry_name, options).map_err(|e| e.to_string())?;
+        zip.start_file(entry_name, options)
+            .map_err(|e| e.to_string())?;
         let mut f = File::open(path).map_err(|e| e.to_string())?;
         // Streaming par blocs pour ne jamais charger de gros fichiers multimédias en mémoire vive
         std::io::copy(&mut f, &mut zip).map_err(|e| e.to_string())?;
@@ -196,7 +197,10 @@ mod tests {
         let input = Path::new("/home/user/photos/vacances.jpg");
         let dest = Path::new("/home/user/export");
         let out = resolve_export_path(input, dest, &ExportMode::Folder, Some("2026-10-27"));
-        assert_eq!(out, PathBuf::from("/home/user/export/Export_2026-10-27/vacances.jpg"));
+        assert_eq!(
+            out,
+            PathBuf::from("/home/user/export/Export_2026-10-27/vacances.jpg")
+        );
     }
 
     #[test]

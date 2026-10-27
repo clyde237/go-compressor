@@ -87,7 +87,7 @@ export function useMediaBatch(): UseMediaBatchResult {
         }
 
         const newItems: MediaItem[] = paths.map((p, idx) => {
-          const parts = p.split(/[\/\\]/);
+          const parts = p.split(/[/\\]/);
           const fileName = parts[parts.length - 1] || 'fichier';
           const extParts = fileName.split('.');
           const ext = extParts.length > 1 ? extParts[extParts.length - 1].toUpperCase() : 'INCONNU';

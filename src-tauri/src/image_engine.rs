@@ -1,11 +1,11 @@
 //! Image compression engine using Rayon, adaptive scaling and dichotomy on quality Q.
 
+use image::codecs::jpeg::JpegEncoder;
+use image::{DynamicImage, imageops};
+use rayon::prelude::*;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use image::codecs::jpeg::JpegEncoder;
-use image::{imageops, DynamicImage};
-use rayon::prelude::*;
 use thiserror::Error;
 
 pub const TARGET_MIN_BYTES: u64 = 800 * 1024; // 800 Ko (819 200 octets)
@@ -26,7 +26,9 @@ pub enum ImageEngineError {
     #[error("Format d'image non supporté ou fichier corrompu: {0}")]
     ImageDecodeError(PathBuf, #[source] image::ImageError),
 
-    #[error("Impossible de calibrer l'image {0} sous la limite de 2 Mo même à Q=65 et échelle 0.40")]
+    #[error(
+        "Impossible de calibrer l'image {0} sous la limite de 2 Mo même à Q=65 et échelle 0.40"
+    )]
     CalibrationFailed(PathBuf),
 
     #[error("Quota d'images dépassé: maximum {0} photos par lot")]
@@ -85,11 +87,7 @@ pub fn resize_adaptive(img: &DynamicImage, scale: f32) -> DynamicImage {
     }
     let width = ((img.width() as f32) * scale).round() as u32;
     let height = ((img.height() as f32) * scale).round() as u32;
-    img.resize_exact(
-        width.max(1),
-        height.max(1),
-        imageops::FilterType::Lanczos3,
-    )
+    img.resize_exact(width.max(1), height.max(1), imageops::FilterType::Lanczos3)
 }
 
 /// Recherche dichotomique du facteur de qualité Q dans [q_min, q_max]
@@ -114,13 +112,19 @@ pub fn binary_search_quality(
         if size > size_max {
             high = mid.saturating_sub(1);
         } else if size < size_min {
-            let is_better = best.as_ref().map(|(_, prev)| size > prev.len()).unwrap_or(true);
+            let is_better = best
+                .as_ref()
+                .map(|(_, prev)| size > prev.len())
+                .unwrap_or(true);
             if is_better {
                 best = Some((mid, bytes));
             }
             low = mid + 1;
         } else {
-            let is_better = best.as_ref().map(|(_, prev)| size > prev.len()).unwrap_or(true);
+            let is_better = best
+                .as_ref()
+                .map(|(_, prev)| size > prev.len())
+                .unwrap_or(true);
             if is_better {
                 best = Some((mid, bytes));
             }
@@ -178,8 +182,8 @@ pub fn compress_single_image(
     output_path: &Path,
     options: &ImageCompressionOptions,
 ) -> Result<CompressionResult, ImageEngineError> {
-    let original_bytes = fs::read(input_path)
-        .map_err(|e| ImageEngineError::IoError(input_path.to_path_buf(), e))?;
+    let original_bytes =
+        fs::read(input_path).map_err(|e| ImageEngineError::IoError(input_path.to_path_buf(), e))?;
     let original_size = original_bytes.len();
 
     let img = image::load_from_memory(&original_bytes)
@@ -233,7 +237,9 @@ pub fn compress_single_image(
         }
     }
 
-    Err(ImageEngineError::CalibrationFailed(input_path.to_path_buf()))
+    Err(ImageEngineError::CalibrationFailed(
+        input_path.to_path_buf(),
+    ))
 }
 
 /// Traitement parallélisé d'un lot d'images avec Rayon
@@ -248,7 +254,11 @@ pub fn compress_images_batch<F>(
 where
     F: Fn(String, f32, u64, &str, bool, bool, Option<String>) + Sync + Send,
 {
-    let num_threads = if options.threads > 0 { options.threads } else { 4 };
+    let num_threads = if options.threads > 0 {
+        options.threads
+    } else {
+        4
+    };
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
@@ -397,7 +407,8 @@ mod tests {
             preserve_exif: false,
         };
 
-        let res = compress_single_image(&in_path, &out_path, &options).expect("compression reussie");
+        let res =
+            compress_single_image(&in_path, &out_path, &options).expect("compression reussie");
         assert!(res.final_size_bytes > 0);
         assert!(out_path.exists());
 

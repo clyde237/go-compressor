@@ -302,18 +302,18 @@ gantt
 ### Phase 8 : Recette Globale, Tests Automatisés & Pipeline CI/CD Multi-OS
 *Objectif : Valider 100 % des exigences du CDC et automatiser la publication des installateurs finaux.*
 
-- [ ] **8.1 Tests Automatisés Côté Frontend (Vitest & Testing Library) :**
+- [x] **8.1 Tests Automatisés Côté Frontend (Vitest & Testing Library) :**
   - Tests unitaires des utilitaires de formatage (`fmt(mo)`, calcul de gain en %).
   - Tests de validation des quotas : blocage de l'ajout de la $21^{\text{e}}$ vidéo et de la $51^{\text{e}}$ photo.
   - Tests de rendu des onglets et interactions du formulaire des paramètres.
-- [ ] **8.2 Tests Automatisés Côté Backend Rust (`cargo test`) :**
+- [x] **8.2 Tests Automatisés Côté Backend Rust (`cargo test`) :**
   - Test unitaire de la recherche dichotomique sur une mire de test (vérification de la convergence vers $800\text{ Ko} - 2\text{ Mo}$).
   - Test de vérification du rejet immédiat si `videos.len() > 20`.
   - Test d'intégrité de la génération de l'archive `.zip`.
-- [ ] **8.3 Qualité et Linting Stricts :**
+- [x] **8.3 Qualité et Linting Stricts :**
   - Rust : `cargo clippy --all-targets -- -D warnings` (zéro warning toléré).
   - React/TS : `npm run lint` et `tsc --noEmit`.
-- [ ] **8.4 Configuration de la Matrice CI/CD GitHub Actions (`.github/workflows/release.yml`) :**
+- [x] **8.4 Configuration de la Matrice CI/CD GitHub Actions (`.github/workflows/quality.yml` & `.github/workflows/release.yml`) :**
   - Mise en place du workflow officiel avec 3 runners natifs :
     - `windows-latest` : génère l'installateur `.exe` (NSIS avec bootstrapper silencieux WebView2) et le paquet `.msi` (WiX Toolset).
     - `ubuntu-22.04` : installe les dépendances système GTK/WebKit et génère le paquet `.deb`.

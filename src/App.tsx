@@ -144,18 +144,18 @@ export function App() {
               outputDirectory: settings.output_directory,
             }}
             onUpdateSettings={(updated) => {
-              handleUpdateSettings({
-                target_min_bytes: updated.targetMinBytes,
-                target_max_bytes: updated.targetMaxBytes,
-                target_bytes: updated.targetBytes,
-                q_min: updated.qMin,
-                q_max: updated.qMax,
-                threads: updated.threads,
-                crf: updated.crf,
-                export_mode: updated.mode,
-                preserve_exif: updated.preserveExif,
-                output_directory: updated.outputDirectory,
-              });
+              const partial: Partial<BatchConfig> = {};
+              if (updated.targetMinBytes !== undefined) partial.target_min_bytes = updated.targetMinBytes;
+              if (updated.targetMaxBytes !== undefined) partial.target_max_bytes = updated.targetMaxBytes;
+              if (updated.targetBytes !== undefined) partial.target_bytes = updated.targetBytes;
+              if (updated.qMin !== undefined) partial.q_min = updated.qMin;
+              if (updated.qMax !== undefined) partial.q_max = updated.qMax;
+              if (updated.threads !== undefined) partial.threads = updated.threads;
+              if (updated.crf !== undefined) partial.crf = updated.crf;
+              if (updated.mode !== undefined) partial.export_mode = updated.mode;
+              if (updated.preserveExif !== undefined) partial.preserve_exif = updated.preserveExif;
+              if (updated.outputDirectory !== undefined) partial.output_directory = updated.outputDirectory;
+              handleUpdateSettings(partial);
             }}
             onResetDefaults={handleResetSettings}
           />

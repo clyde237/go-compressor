@@ -14,7 +14,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 pub const MAX_VIDEOS: usize = 20;
 pub const DEFAULT_CRF: u8 = 26;
@@ -82,12 +82,31 @@ pub struct VideoTranscodeReport {
 
 #[derive(Debug, Clone)]
 pub enum VideoEvent {
-    Queued { id: String },
-    Rejected { id: String, reason: String },
-    Started { id: String },
-    Progress { id: String, percent: f32, current_bytes: u64 },
-    Completed { id: String, output: PathBuf, final_size_bytes: u64, gain_percent: u32 },
-    Failed { id: String, error: String },
+    Queued {
+        id: String,
+    },
+    Rejected {
+        id: String,
+        reason: String,
+    },
+    Started {
+        id: String,
+    },
+    Progress {
+        id: String,
+        percent: f32,
+        current_bytes: u64,
+    },
+    Completed {
+        id: String,
+        output: PathBuf,
+        final_size_bytes: u64,
+        gain_percent: u32,
+    },
+    Failed {
+        id: String,
+        error: String,
+    },
 }
 
 /// Résout le chemin absolu ou relatif vers l'exécutable FFmpeg
@@ -122,7 +141,10 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
     }
 
     // 3. Dossier relatif à l'exécutable en cours d'exécution
-    if let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())) {
+    if let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(|p| p.to_path_buf()))
+    {
         let exe_sidecar = exe_dir.join(format!("ffmpeg-{host_triple}{ext}"));
         if exe_sidecar.exists() {
             return exe_sidecar;
@@ -170,7 +192,10 @@ pub fn resolve_ffprobe_path() -> PathBuf {
         return sidecar_bin;
     }
 
-    if let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())) {
+    if let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(|p| p.to_path_buf()))
+    {
         let exe_sidecar = exe_dir.join(format!("ffprobe-{host_triple}{ext}"));
         if exe_sidecar.exists() {
             return exe_sidecar;
@@ -197,9 +222,12 @@ pub async fn get_video_duration(input: &Path) -> Result<f64, VideoEngineError> {
     let ffprobe = resolve_ffprobe_path();
     if let Ok(output) = Command::new(&ffprobe)
         .args([
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
         ])
         .arg(input)
         .output()
@@ -213,19 +241,16 @@ pub async fn get_video_duration(input: &Path) -> Result<f64, VideoEngineError> {
 
     // Fallback : extraction de la durée via la sortie d'erreur de ffmpeg -i
     let ffmpeg = resolve_ffmpeg_path();
-    if let Ok(output) = Command::new(&ffmpeg)
-        .arg("-i")
-        .arg(input)
-        .output()
-        .await
-    {
+    if let Ok(output) = Command::new(&ffmpeg).arg("-i").arg(input).output().await {
         let stderr_text = String::from_utf8_lossy(&output.stderr);
         if let Some(dur) = parse_duration_from_stderr(&stderr_text) {
             return Ok(dur);
         }
     }
 
-    Err(VideoEngineError::DurationDetectionFailed(input.to_path_buf()))
+    Err(VideoEngineError::DurationDetectionFailed(
+        input.to_path_buf(),
+    ))
 }
 
 /// Analyse une durée au format "Duration: HH:MM:SS.xx" dans le flux de FFmpeg
@@ -255,10 +280,14 @@ pub fn probe_video_has_audio(input: &Path) -> Option<bool> {
     let ffprobe = resolve_ffprobe_path();
     let output = std::process::Command::new(&ffprobe)
         .args([
-            "-v", "error",
-            "-select_streams", "a:0",
-            "-show_entries", "stream=codec_type",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
         ])
         .arg(input)
         .output()
@@ -280,17 +309,23 @@ where
         return Err(VideoEngineError::FileNotFound(job.input.clone()));
     }
 
-    let orig_size = std::fs::metadata(&job.input)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let orig_size = std::fs::metadata(&job.input).map(|m| m.len()).unwrap_or(0);
 
     // Durée source en secondes et microsecondes
     let duration_sec = get_video_duration(&job.input).await.unwrap_or(1.0);
     let duration_us = (duration_sec * 1_000_000.0).max(1.0) as u64;
 
     // Fichier temporaire atomique préservant l'extension pour le multiplexeur FFmpeg
-    let stem = job.output.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
-    let ext = job.output.extension().and_then(|e| e.to_str()).unwrap_or("mp4");
+    let stem = job
+        .output
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("video");
+    let ext = job
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("mp4");
     let part_output = job.output.with_file_name(format!("{stem}_temp_part.{ext}"));
 
     if let Some(parent) = part_output.parent() {
@@ -305,26 +340,41 @@ where
         .arg("-i")
         .arg(&job.input)
         .args([
-            "-map", "0:v:0?",
-            "-map", "0:a?",
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", &crf.to_string(),
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-ac", "2",
-            "-ar", "44100",
-            "-f", "mp4",
-            "-progress", "pipe:1",
+            "-map",
+            "0:v:0?",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            &crf.to_string(),
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ac",
+            "2",
+            "-ar",
+            "44100",
+            "-f",
+            "mp4",
+            "-progress",
+            "pipe:1",
             "-nostats",
         ])
         .arg(&part_output)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| VideoEngineError::IoError(ffmpeg_bin, e))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| VideoEngineError::IoError(ffmpeg_bin, e))?;
 
     let stdout = child.stdout.take().ok_or_else(|| {
         VideoEngineError::TranscodeFailed(-1, "Impossible de capturer stdout de FFmpeg".into())
@@ -369,8 +419,8 @@ where
                 if status_val == "end" {
                     progress_callback(99.0, current_size_bytes, "Finalisation du conteneur...");
                 } else if let Some(elapsed_us) = current_out_time_us {
-                    let pct = ((elapsed_us as f64 / duration_us as f64) * 100.0)
-                        .clamp(5.0, 98.0) as f32;
+                    let pct =
+                        ((elapsed_us as f64 / duration_us as f64) * 100.0).clamp(5.0, 98.0) as f32;
                     progress_callback(pct, current_size_bytes, "Encodage H.264...");
                 }
             }
@@ -390,7 +440,10 @@ where
         let code = status.code().unwrap_or(-1);
         return Err(VideoEngineError::TranscodeFailed(
             code,
-            format!("Processus FFmpeg terminé avec le code {} : {}", code, stderr_output),
+            format!(
+                "Processus FFmpeg terminé avec le code {} : {}",
+                code, stderr_output
+            ),
         ));
     }
 
@@ -712,19 +765,28 @@ mod tests {
         let gen_status = Command::new(&ffmpeg_bin)
             .args([
                 "-y",
-                "-f", "lavfi",
-                "-i", "testsrc=duration=1:size=160x120:rate=10",
-                "-f", "lavfi",
-                "-i", "sine=frequency=1000:duration=1",
-                "-c:v", "libx264",
-                "-c:a", "aac",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=1:size=160x120:rate=10",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=1000:duration=1",
+                "-c:v",
+                "libx264",
+                "-c:a",
+                "aac",
                 input_path.to_str().unwrap(),
             ])
             .output()
             .await;
 
         if let Ok(gen_res) = gen_status {
-            assert!(gen_res.status.success(), "Échec de la génération de la vidéo synthétique");
+            assert!(
+                gen_res.status.success(),
+                "Échec de la génération de la vidéo synthétique"
+            );
             assert_eq!(probe_video_has_audio(&input_path), Some(true));
 
             let job = VideoJob {
@@ -740,11 +802,19 @@ mod tests {
             })
             .await;
 
-            assert!(res.is_ok(), "L'encodage du job vidéo a échoué : {:?}", res.err());
+            assert!(
+                res.is_ok(),
+                "L'encodage du job vidéo a échoué : {:?}",
+                res.err()
+            );
             let report = res.unwrap();
             assert!(report.success);
             assert!(output_path.exists());
-            assert_eq!(probe_video_has_audio(&output_path), Some(true), "Le flux audio doit être conservé dans le fichier compressé !");
+            assert_eq!(
+                probe_video_has_audio(&output_path),
+                Some(true),
+                "Le flux audio doit être conservé dans le fichier compressé !"
+            );
             assert!(report.output_size_bytes > 0);
             assert!(progress_count > 0);
 

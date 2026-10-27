@@ -312,4 +312,62 @@ describe('DashboardView Component', () => {
     expect(screen.getByText('Source muette')).toBeDefined();
     expect(screen.getByText('Audio stéréo')).toBeDefined();
   });
+
+  it('déclenche onStart et onBrowseFolder lors des clics sur les boutons correspondants', () => {
+    const onStart = vi.fn();
+    const onBrowseFolder = vi.fn();
+    const onDestChange = vi.fn();
+
+    const pendingItem: MediaItem = {
+      id: 'item_1',
+      name: 'photo.jpg',
+      path: '/path/photo.jpg',
+      kind: 'image',
+      format: 'JPG',
+      sizeBytes: 5 * 1024 * 1024,
+      progress: 0,
+      status: 'wait',
+    };
+
+    render(
+      <DashboardView
+        items={[pendingItem]}
+        activeMediaTab="images"
+        onMediaTabChange={vi.fn()}
+        folders={[
+          { label: 'Dossier 1', value: '/dossier-1' },
+          { label: 'Dossier 2', value: '/dossier-2' },
+        ]}
+        destValue="/dossier-1"
+        onDestChange={onDestChange}
+        onBrowseFolder={onBrowseFolder}
+        targetKo={1104}
+        onTargetChange={vi.fn()}
+        onAddBatch={vi.fn()}
+        onClearQueue={vi.fn()}
+        onRemoveItem={vi.fn()}
+        running={false}
+        hasRun={false}
+        cpu={0}
+        ram={0}
+        onStart={onStart}
+        onPause={vi.fn()}
+        onDownloadZip={vi.fn()}
+        crf={26}
+        exportMode="copy"
+      />
+    );
+
+    const startBtn = screen.getByRole('button', { name: /LANCER LA COMPRESSION/i });
+    fireEvent.click(startBtn);
+    expect(onStart).toHaveBeenCalledTimes(1);
+
+    const browseBtn = screen.getByRole('button', { name: /Parcourir/i });
+    fireEvent.click(browseBtn);
+    expect(onBrowseFolder).toHaveBeenCalledTimes(1);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: '/dossier-2' } });
+    expect(onDestChange).toHaveBeenCalledWith('/dossier-2');
+  });
 });

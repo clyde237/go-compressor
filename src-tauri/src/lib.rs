@@ -136,7 +136,10 @@ fn open_directory_in_explorer(path: String) -> Result<(), String> {
     };
 
     if !target.exists() {
-        return Err(format!("L'emplacement spécifié n'existe pas : {}", target.display()));
+        return Err(format!(
+            "L'emplacement spécifié n'existe pas : {}",
+            target.display()
+        ));
     }
 
     #[cfg(target_os = "windows")]
@@ -283,7 +286,10 @@ async fn process_media_batch(
     let total_orig: u64 = report_items.iter().map(|i| i.original_size_bytes).sum();
     let total_out: u64 = report_items.iter().map(|i| i.output_size_bytes).sum();
     let avg_gain = if !report_items.is_empty() {
-        (report_items.iter().map(|i| i.gain_percent as u64).sum::<u64>()
+        (report_items
+            .iter()
+            .map(|i| i.gain_percent as u64)
+            .sum::<u64>()
             / report_items.len() as u64) as u32
     } else {
         0
