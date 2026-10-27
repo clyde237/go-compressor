@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MediaItem, QUOTAS } from '../types/media';
 import { BatchConfig, CompressionProgressPayload, SystemMetrics, BatchReport } from '../types/ipc';
+import { loadSavedExportDirectory, saveExportDirectory } from '../utils/storage';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -37,8 +38,13 @@ export function useMediaBatch(): UseMediaBatchResult {
   const [hasRun, setHasRun] = useState<boolean>(false);
   const [cpu, setCpu] = useState<number>(0);
   const [ram, setRam] = useState<number>(0);
-  const [exportDirectory, setExportDirectory] = useState<string>('');
+  const [exportDirectory, setExportDirectoryState] = useState<string>(() => loadSavedExportDirectory());
   const [alert, setAlert] = useState<{ title: string; body: string; detail?: string } | null>(null);
+
+  const setExportDirectory = useCallback((dir: string) => {
+    setExportDirectoryState(dir);
+    saveExportDirectory(dir);
+  }, []);
 
   const runningRef = useRef(running);
   runningRef.current = running;
@@ -186,7 +192,7 @@ export function useMediaBatch(): UseMediaBatchResult {
         body: String(err),
       });
     }
-  }, []);
+  }, [setExportDirectory]);
 
   // Téléchargement d'une archive ZIP du lot (pour les lots groupés de 5 fichiers et plus)
   const downloadZipArchive = useCallback(async () => {

@@ -402,6 +402,7 @@ pub async fn transcode_videos_sequential<F>(
     videos: &[String],
     output_dir: &Path,
     export_mode: &crate::export_engine::ExportMode,
+    folder_timestamp: Option<&str>,
     crf: u8,
     mut progress_callback: F,
 ) -> Result<Vec<crate::ProcessedMediaItem>, VideoEngineError>
@@ -434,7 +435,7 @@ where
             input_path,
             output_dir,
             export_mode,
-            None,
+            folder_timestamp,
         );
 
         let job = VideoJob {

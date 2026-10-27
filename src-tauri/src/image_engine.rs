@@ -241,6 +241,7 @@ pub fn compress_images_batch<F>(
     images: &[String],
     output_dir: &Path,
     export_mode: &crate::export_engine::ExportMode,
+    folder_timestamp: Option<&str>,
     options: &ImageCompressionOptions,
     progress_callback: F,
 ) -> Vec<crate::ProcessedMediaItem>
@@ -265,7 +266,7 @@ where
                     path,
                     output_dir,
                     export_mode,
-                    None,
+                    folder_timestamp,
                 );
 
                 match compress_single_image(path, &dest_path, options) {

@@ -267,15 +267,15 @@ gantt
 ### Phase 6 : Moteurs d'Export, Archivage ZIP & Gestion des Paramètres (`export_engine.rs`)
 *Objectif : Assurer la restitution intègre, sécurisée et flexible des fichiers traités.*
 
-- [ ] **6.1 Stratégies d'Écriture Non-Destructive :**
+- [x] **6.1 Stratégies d'Écriture Non-Destructive :**
   - **Mode Copie :** Écriture directe des médias optimisés dans le répertoire cible sélectionné par l'utilisateur.
   - **Mode Suffixe :** Sauvegarde dans le même dossier que l'original en ajoutant le suffixe `_opt` (ex: `photo_01_opt.jpg`).
   - **Mode Sous-Dossier Horodaté :** Création automatique d'un sous-dossier `Export_YYYY-MM-DD_HHmmss` pour ranger le lot sans risque de collision.
-- [ ] **6.2 Module d'Empaquetage d'Archive `.zip` (CDC US-05) :**
+- [x] **6.2 Module d'Empaquetage d'Archive `.zip` (CDC US-05) :**
   - Crate `zip` de Rust : création d'une archive compressée contenant tous les fichiers du lot traité.
   - Déclenchement au clic sur le bouton « Télécharger » : ouverture du dialogue de sauvegarde natif (`@tauri-apps/plugin-dialog` en mode `save` avec filtre `.zip`) pour choisir le nom et l'emplacement de l'archive.
   - Écriture en flux direct sans saturer la RAM.
-- [ ] **6.3 Persistance des Préférences Utilisateur :**
+- [x] **6.3 Persistance des Préférences Utilisateur :**
   - Mémorisation locale (via `tauri-plugin-store` ou `localStorage`) des réglages utilisateur : dernier répertoire utilisé, valeur cible du slider, mode d'export préféré, conservation de l'EXIF.
 
 ---

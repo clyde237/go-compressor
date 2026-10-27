@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BatchConfig, ExportMode } from './types/ipc';
+import { BatchConfig } from './types/ipc';
+import { loadSavedSettings, saveSettings, resetSavedSettings } from './utils/storage';
 import { HeaderTabs, TabId } from './components/layout/HeaderTabs';
 import { DashboardView, FolderOption, MediaTab } from './components/views/DashboardView';
 import { SettingsView } from './components/views/SettingsView';
@@ -12,24 +13,13 @@ const INITIAL_FOLDERS: FolderOption[] = [
   { label: 'ex: /Utilisateurs/Bureau/Optimisés', value: '2' },
 ];
 
-const DEFAULT_SETTINGS: BatchConfig = {
-  target_min_bytes: 800 * 1024,
-  target_max_bytes: 2 * 1024 * 1024,
-  target_bytes: 1104 * 1024, // 1104 Ko
-  q_min: 65,
-  q_max: 92,
-  threads: 4,
-  crf: 26,
-  export_mode: 'copy' as ExportMode,
-  preserve_exif: true,
-  output_directory: '0',
-};
-
 export function App() {
   const [tab, setTab] = useState<TabId>('dash');
   const [activeMediaTab, setActiveMediaTab] = useState<MediaTab>('images');
-  const [targetKo, setTargetKo] = useState<number>(1104);
-  const [settings, setSettings] = useState<BatchConfig>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<BatchConfig>(() => loadSavedSettings());
+  const [targetKo, setTargetKo] = useState<number>(() =>
+    Math.round(loadSavedSettings().target_bytes / 1024)
+  );
 
   const {
     files,
@@ -52,13 +42,17 @@ export function App() {
     setExportDirectory,
   } = useMediaBatch();
 
-  // Synchronisation du slider cible entre Dashboard et Settings
+  // Synchronisation du slider cible entre Dashboard et Settings avec persistance
   const handleTargetChange = (newKo: number) => {
     setTargetKo(newKo);
-    setSettings((prev) => ({
-      ...prev,
-      target_bytes: newKo * 1024,
-    }));
+    setSettings((prev) => {
+      const updated = {
+        ...prev,
+        target_bytes: newKo * 1024,
+      };
+      saveSettings(updated);
+      return updated;
+    });
   };
 
   const handleUpdateSettings = (partial: Partial<BatchConfig>) => {
@@ -67,13 +61,15 @@ export function App() {
       if (partial.target_bytes) {
         setTargetKo(Math.round(partial.target_bytes / 1024));
       }
+      saveSettings(updated);
       return updated;
     });
   };
 
   const handleResetSettings = () => {
-    setSettings(DEFAULT_SETTINGS);
-    setTargetKo(1104);
+    const defaults = resetSavedSettings();
+    setSettings(defaults);
+    setTargetKo(Math.round(defaults.target_bytes / 1024));
   };
 
   // Adapter les options de dossier avec le dossier sélectionné s'il existe

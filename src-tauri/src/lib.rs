@@ -197,6 +197,13 @@ async fn process_media_batch(
 
     let out_dir = Path::new(&config.output_directory);
 
+    // En mode sous-dossier, générer un timestamp unique partagé par tout le lot
+    let batch_folder_timestamp = if config.export_mode == export_engine::ExportMode::Folder {
+        Some(export_engine::generate_folder_timestamp())
+    } else {
+        None
+    };
+
     // 2. Traitement des images parallélisé avec Rayon (Phase 4)
     let image_opts = image_engine::ImageCompressionOptions {
         target_min_bytes: config.target_min_bytes,
@@ -213,6 +220,7 @@ async fn process_media_batch(
         &images,
         out_dir,
         &config.export_mode,
+        batch_folder_timestamp.as_deref(),
         &image_opts,
         move |file_path, progress, current_bytes, stage, is_done| {
             let _ = app_handle.emit(
@@ -237,6 +245,7 @@ async fn process_media_batch(
             &videos,
             out_dir,
             &config.export_mode,
+            batch_folder_timestamp.as_deref(),
             config.crf,
             move |file_path, progress, current_bytes, stage, is_done| {
                 let _ = app_handle_video.emit(
