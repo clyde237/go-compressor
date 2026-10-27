@@ -85,10 +85,14 @@ jobs:
         run: |
           choco install ffmpeg -y
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
-          $ffmpeg = (Get-Command ffmpeg).Source
-          $ffprobe = (Get-Command ffprobe).Source
-          Copy-Item $ffmpeg src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force
-          Copy-Item $ffprobe src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force
+          $realFfmpeg = (Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\ffmpeg" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1).FullName
+          $realFfprobe = (Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\ffmpeg" -Recurse -Filter "ffprobe.exe" | Select-Object -First 1).FullName
+          if (-not $realFfmpeg) { $realFfmpeg = (Get-Command ffmpeg).Source }
+          if (-not $realFfprobe) { $realFfprobe = (Get-Command ffprobe).Source }
+          Write-Host "Copying real FFmpeg from: $realFfmpeg"
+          Write-Host "Copying real FFprobe from: $realFfprobe"
+          Copy-Item $realFfmpeg src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force
+          Copy-Item $realFfprobe src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force
 
       - name: Setup macOS FFmpeg & sidecars
         if: runner.os == 'macOS'
