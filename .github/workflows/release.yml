@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -41,7 +42,7 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Install Linux build dependencies
+      - name: Install Linux build dependencies & setup sidecars
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
@@ -56,6 +57,45 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             ffmpeg
+          mkdir -p src-tauri/binaries
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu
+          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu
+          chmod +x src-tauri/binaries/*
+
+      - name: Setup Windows sidecars
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          FFMPEG_EXE=$(which ffmpeg || echo "")
+          FFPROBE_EXE=$(which ffprobe || echo "")
+          if [ -n "$FFMPEG_EXE" ]; then
+            cp "$FFMPEG_EXE" src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
+          fi
+          if [ -n "$FFPROBE_EXE" ]; then
+            cp "$FFPROBE_EXE" src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe
+          fi
+
+      - name: Setup macOS sidecars
+        if: matrix.platform == 'macos-latest'
+        run: |
+          mkdir -p src-tauri/binaries
+          FFMPEG_BIN=$(which ffmpeg || echo "")
+          FFPROBE_BIN=$(which ffprobe || echo "")
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            TRIPLE="aarch64-apple-darwin"
+          else
+            TRIPLE="x86_64-apple-darwin"
+          fi
+          if [ -n "$FFMPEG_BIN" ]; then
+            cp "$FFMPEG_BIN" "src-tauri/binaries/ffmpeg-$TRIPLE"
+            chmod +x "src-tauri/binaries/ffmpeg-$TRIPLE"
+          fi
+          if [ -n "$FFPROBE_BIN" ]; then
+            cp "$FFPROBE_BIN" "src-tauri/binaries/ffprobe-$TRIPLE"
+            chmod +x "src-tauri/binaries/ffprobe-$TRIPLE"
+          fi
 
       - name: Install frontend dependencies
         run: npm ci
@@ -68,12 +108,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'GO COMPRESSOR ${{ github.ref_name }}'
+          tagName: v__VERSION__
+          releaseName: 'GO COMPRESSOR v__VERSION__'
           releaseBody: |
             ## GO COMPRESSOR — Optimisation et compression multimédia par lots
 
-            ### Nouveautés de la version ${{ github.ref_name }}
+            ### Nouveautés de la version v__VERSION__
             - Moteur de compression d'images multi-cœurs (Rayon) avec calibrage précis à la taille cible (800 Ko – 2 Mo) par recherche dichotomique.
             - File d'attente séquentielle stricte pour le transcodage vidéo H.264 (FFmpeg sidecar) plafonnée à 20 vidéos maximum.
             - Préservation stricte de la piste audio stéréo (AAC 128k, downmix stéréo 44.1 kHz).
