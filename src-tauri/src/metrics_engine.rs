@@ -24,9 +24,9 @@ pub fn get_current_metrics(sys: &mut System) -> SystemMetrics {
     sys.refresh_cpu_all();
     sys.refresh_memory();
 
-    let cpu_usage = sys.global_cpu_usage();
-    let used_memory_gb = sys.used_memory() as f32 / (1024.0 * 1024.0 * 1024.0);
-    let total_memory_gb = sys.total_memory() as f32 / (1024.0 * 1024.0 * 1024.0);
+    let cpu_usage = sys.global_cpu_usage().clamp(0.0, 100.0);
+    let used_memory_gb = (sys.used_memory() as f32 / (1024.0 * 1024.0 * 1024.0)).max(0.0);
+    let total_memory_gb = (sys.total_memory() as f32 / (1024.0 * 1024.0 * 1024.0)).max(0.0);
 
     SystemMetrics {
         cpu_usage,

@@ -283,17 +283,17 @@ gantt
 ### Phase 7 : Métriques Système Temps Réel, Alertes & Résilience
 *Objectif : Garantir une expérience utilisateur transparente, informative et robuste aux imprévus.*
 
-- [ ] **7.1 Sonde Télémétrique d'Activité Machine (`metrics_engine.rs`) :**
+- [x] **7.1 Sonde Télémétrique d'Activité Machine (`metrics_engine.rs`) :**
   - Utilisation de la crate `sysinfo` pour relever périodiquement (toutes les secondes pendant la compression) :
     - Le taux d'utilisation globale du processeur (CPU %).
     - L'occupation de la mémoire vive (RAM Go).
   - Émission au frontend pour mettre à jour l'indicateur textuel : `CPU : XX% • RAM : X.X Go`.
-- [ ] **7.2 Modales d'Alerte Bloquantes & Accessibilité :**
+- [x] **7.2 Modales d'Alerte Bloquantes & Accessibilité :**
   - Implémentation complète de la boîte modale (`gc-overlay`) accessible selon la norme WAI-ARIA :
     - Focus trap actif sur le bouton de fermeture « Compris ».
     - Fermeture possible via la touche `Échap`.
     - Lecteur d'écran informé via `role="alertdialog"`, `aria-labelledby="alert-title"` et `aria-describedby="alert-body"`.
-- [ ] **7.3 Gestion des Erreurs et Robustesse (100 Règles de Code Pro) :**
+- [x] **7.3 Gestion des Erreurs et Robustesse (100 Règles de Code Pro) :**
   - Gestion des fichiers corrompus, permissions disque refusées, espace disque insuffisant.
   - Retour d'erreurs claires au niveau de chaque ligne de fichier dans l'onglet *Fichiers* et dans le *Rapport de compression*.
 

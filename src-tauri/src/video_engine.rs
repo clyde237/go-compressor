@@ -407,7 +407,7 @@ pub async fn transcode_videos_sequential<F>(
     mut progress_callback: F,
 ) -> Result<Vec<crate::ProcessedMediaItem>, VideoEngineError>
 where
-    F: FnMut(String, f32, u64, &str, bool) + Send,
+    F: FnMut(String, f32, u64, &str, bool, bool, Option<String>) + Send,
 {
     if videos.len() > MAX_VIDEOS {
         return Err(VideoEngineError::QuotaExceeded(videos.len()));
@@ -418,6 +418,15 @@ where
     for (idx, vid_str) in videos.iter().enumerate() {
         let input_path = Path::new(vid_str);
         if !input_path.exists() {
+            progress_callback(
+                vid_str.clone(),
+                100.0,
+                0,
+                "Fichier introuvable sur le disque",
+                true,
+                true,
+                Some("Fichier introuvable sur le disque".into()),
+            );
             reports.push(crate::ProcessedMediaItem {
                 file_path: vid_str.clone(),
                 original_size_bytes: 0,
@@ -452,10 +461,12 @@ where
             0,
             "Initialisation du transcodage séquentiel FFmpeg...",
             false,
+            false,
+            None,
         );
 
         let mut progress_for_job = |pct: f32, bytes: u64, stage: &str| {
-            progress_callback(current_path.clone(), pct, bytes, stage, false);
+            progress_callback(current_path.clone(), pct, bytes, stage, false, false, None);
         };
 
         match encode_video_job(&job, &mut progress_for_job).await {
@@ -466,6 +477,8 @@ where
                     rep.output_size_bytes,
                     "Transcodage terminé",
                     true,
+                    false,
+                    None,
                 );
                 reports.push(crate::ProcessedMediaItem {
                     file_path: rep.file_path,
@@ -484,6 +497,8 @@ where
                     0,
                     "Échec du transcodage",
                     true,
+                    true,
+                    Some(err.to_string()),
                 );
                 reports.push(crate::ProcessedMediaItem {
                     file_path: current_path,

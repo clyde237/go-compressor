@@ -35,6 +35,10 @@
   /* Statuts */
   --success-500: #379f66;
   --success-700: #367250;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --danger-700: #b91c1c;
+  --danger-bg: #fef2f2;
   --white: #ffffff;
 
   /* Espacements */
@@ -369,6 +373,11 @@ body {
   color: var(--ink-muted);
 }
 
+.gc-status--error {
+  color: var(--danger-700);
+  font-weight: 500;
+}
+
 .gc-check {
   margin-left: auto;
   width: 24px;
@@ -385,6 +394,26 @@ body {
   stroke: var(--surface-100);
   fill: none;
   stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gc-error-badge {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--danger-500);
+  display: grid;
+  place-items: center;
+}
+
+.gc-error-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--surface-100);
+  fill: none;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -407,6 +436,10 @@ body {
 
 .gc-progress--done > span {
   background: var(--success-500);
+}
+
+.gc-progress--error > span {
+  background: var(--danger-500);
 }
 
 /* Glyphes */

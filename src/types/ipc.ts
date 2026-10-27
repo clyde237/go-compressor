@@ -37,6 +37,8 @@ export interface CompressionProgressPayload {
   current_bytes: number;
   stage: string;
   is_done: boolean;
+  is_error: boolean;
+  error_message?: string;
 }
 
 export interface ProcessedMediaItemReport {

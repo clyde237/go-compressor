@@ -14,6 +14,7 @@ import {
   IconCheck,
   IconClose,
   IconFolder,
+  IconAlertTriangle,
 } from '../common/Icons';
 import { formatBytes, calculateGainPercent } from '../../utils/formatters';
 
@@ -93,6 +94,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const doneCurrentItems = currentItems.filter((f) => f.status === 'done');
   const allDoneItems = items.filter((f) => f.status === 'done');
   const doneItems = doneCurrentItems.length > 0 ? doneCurrentItems : allDoneItems;
+
+  const currentErrorItems = currentItems.filter((f) => f.status === 'error');
+  const allErrorItems = items.filter((f) => f.status === 'error');
+  const errorItems = currentErrorItems.length > 0 ? currentErrorItems : allErrorItems;
 
   const sumBefore = doneItems.reduce((acc, f) => acc + f.sizeBytes, 0);
   const sumAfter = doneItems.reduce((acc, f) => acc + (f.finalSizeBytes ?? f.sizeBytes), 0);
@@ -271,6 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {currentItems.map((item) => {
               const isDone = item.status === 'done';
               const isRunning = item.status === 'running';
+              const isError = item.status === 'error';
               const initialStr = formatBytes(item.sizeBytes);
               const finalStr = item.finalSizeBytes ? formatBytes(item.finalSizeBytes) : '';
               const gainPercent =
@@ -281,7 +287,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <div key={item.id}>
                   <div className="gc-item-row">
-                    {isRunning ? (
+                    {isError ? (
+                      <span style={{ color: 'var(--danger-600)', display: 'grid', placeItems: 'center' }}>
+                        <IconAlertTriangle />
+                      </span>
+                    ) : isRunning ? (
                       <IconPlay />
                     ) : item.kind === 'video' ? (
                       <IconVideo />
@@ -298,6 +308,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {isDone ? (
                         <span className="gc-status gc-status--done">
                           {` (-${gainPercent}%) [Terminé]`}
+                        </span>
+                      ) : isError ? (
+                        <span className="gc-status gc-status--error" title={item.errorMessage}>
+                          {` [Échec : ${item.errorMessage || "Erreur de traitement"}]`}
                         </span>
                       ) : isRunning ? (
                         <span className="gc-status">
@@ -329,20 +343,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     )}
 
+                    {isError && (
+                      <span
+                        className="gc-error-badge"
+                        title={item.errorMessage || "Échec d'optimisation"}
+                        aria-label={`Erreur sur ${item.name}`}
+                      >
+                        <IconAlertTriangle />
+                      </span>
+                    )}
+
                     <button
                       type="button"
                       className="gc-iconbtn"
                       aria-label={`Retirer ${item.name}`}
                       onClick={() => onRemoveItem(item.id)}
-                      style={{ marginLeft: isDone ? undefined : 'auto' }}
+                      style={{ marginLeft: isDone || isError ? undefined : 'auto' }}
                     >
                       <IconClose />
                     </button>
                   </div>
 
                   <ProgressBar
-                    progress={item.progress}
+                    progress={isError ? 100 : item.progress}
                     isDone={isDone}
+                    isError={isError}
                     label={`Progression de ${item.name}`}
                   />
                 </div>
@@ -356,7 +381,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="gc-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <h2 className="gc-h2" style={{ margin: 0 }}>Dossier de destination & Export</h2>
-          <Badge>Écriture : {MODE_TITLES[exportMode]}</Badge>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {hasRun && !running && <Badge>Lot exécuté</Badge>}
+            <Badge>Écriture : {MODE_TITLES[exportMode]}</Badge>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'stretch' }}>
@@ -380,14 +408,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </Button>
         </div>
 
-        {/* Rapport KPI lorsque la compression a produit des résultats */}
-        {doneItems.length > 0 && (
+        {/* Rapport KPI lorsque la compression a produit des résultats ou des échecs */}
+        {(doneItems.length > 0 || errorItems.length > 0) && (
           <div
             style={{
               display: 'flex',
               flexWrap: 'wrap',
               gap: '12px',
-              background: 'var(--tint-50)',
+              background:
+                errorItems.length > 0 && doneItems.length === 0
+                  ? 'var(--danger-bg)'
+                  : 'var(--tint-50)',
               padding: '16px',
               borderRadius: '12px',
               alignItems: 'center',
@@ -399,6 +430,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="gc-caption">Fichiers traités</div>
                 <div style={{ fontWeight: 700, fontSize: '18px' }}>{doneItems.length}</div>
               </div>
+              {errorItems.length > 0 && (
+                <div>
+                  <div className="gc-caption" style={{ color: 'var(--danger-700)' }}>
+                    Échecs
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '18px', color: 'var(--danger-600)' }}>
+                    {errorItems.length}
+                  </div>
+                </div>
+              )}
               <div>
                 <div className="gc-caption">Gain moyen</div>
                 <div style={{ fontWeight: 700, fontSize: '18px', color: 'var(--success-700)' }}>
@@ -507,7 +548,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }}
       >
         <span className="gc-caption" style={{ fontSize: '14px', lineHeight: '20px' }}>
-          {(hasRun || running ? '' : 'ex. ') + `CPU : ${cpu}% • RAM : ${ram.toFixed(1)} Go`}
+          {`CPU : ${cpu}% • RAM : ${ram.toFixed(1)} Go`}
         </span>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>

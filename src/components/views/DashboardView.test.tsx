@@ -59,6 +59,7 @@ describe('DashboardView Component', () => {
     expect(screen.getByRole('button', { name: /vidéos/i })).toBeDefined();
     expect(screen.getByText('Glissez-déposez vos photos ici')).toBeDefined();
     expect(screen.getByText(/photo_test\.jpg/i)).toBeDefined();
+    expect(screen.getByText(/CPU : 12% • RAM : 2.1 Go/i)).toBeDefined();
   });
 
   it('doit basculer vers le sous-onglet Vidéos et afficher la dropzone vidéo', () => {
@@ -93,7 +94,6 @@ describe('DashboardView Component', () => {
     fireEvent.click(videoTabBtn);
     expect(onMediaTabChange).toHaveBeenCalledWith('videos');
 
-    // Rerender avec le sous-onglet vidéos actif
     rerender(
       <DashboardView
         items={MOCK_ITEMS}
@@ -168,7 +168,7 @@ describe('DashboardView Component', () => {
     expect(onSaveSingleFile).toHaveBeenCalledTimes(1);
   });
 
-  it("doit proposer le téléchargement groupé ZIP pour un lot de 5 fichiers ou plus", () => {
+  it('doit proposer le téléchargement groupé ZIP pour un lot de 5 fichiers ou plus', () => {
     const onDownloadZip = vi.fn();
     const fiveItems: MediaItem[] = Array.from({ length: 5 }, (_, i) => ({
       id: `img_${i}`,
@@ -212,5 +212,50 @@ describe('DashboardView Component', () => {
     fireEvent.click(downloadZipBtn);
 
     expect(onDownloadZip).toHaveBeenCalledTimes(1);
+  });
+
+  it('doit afficher correctement les fichiers en échec avec leur message d’erreur et le KPI d’échec', () => {
+    const failedItem: MediaItem = {
+      id: 'err_1',
+      name: 'corrupt_image.jpg',
+      path: '/path/corrupt_image.jpg',
+      kind: 'image',
+      format: 'JPG',
+      sizeBytes: 8 * 1024 * 1024,
+      progress: 100,
+      status: 'error',
+      errorMessage: 'Fichier corrompu ou format invalide',
+    };
+
+    render(
+      <DashboardView
+        items={[failedItem]}
+        activeMediaTab="images"
+        onMediaTabChange={vi.fn()}
+        folders={[{ label: 'Dossier 1', value: '0' }]}
+        destValue="0"
+        onDestChange={vi.fn()}
+        onBrowseFolder={vi.fn()}
+        targetKo={1104}
+        onTargetChange={vi.fn()}
+        onAddBatch={vi.fn()}
+        onClearQueue={vi.fn()}
+        onRemoveItem={vi.fn()}
+        running={false}
+        hasRun={true}
+        cpu={15}
+        ram={3.2}
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onDownloadZip={vi.fn()}
+        crf={26}
+        exportMode="copy"
+      />
+    );
+
+    expect(screen.getByText(/corrupt_image\.jpg/i)).toBeDefined();
+    expect(screen.getByText(/\[Échec : Fichier corrompu ou format invalide\]/i)).toBeDefined();
+    expect(screen.getByText('Échecs')).toBeDefined();
+    expect(screen.getByText('1')).toBeDefined();
   });
 });

@@ -64,6 +64,8 @@ pub struct CompressionProgressEvent {
     pub current_bytes: u64,
     pub stage: String,
     pub is_done: bool,
+    pub is_error: bool,
+    pub error_message: Option<String>,
 }
 
 /// Récupère l'utilisation CPU et RAM en temps réel
@@ -222,7 +224,7 @@ async fn process_media_batch(
         &config.export_mode,
         batch_folder_timestamp.as_deref(),
         &image_opts,
-        move |file_path, progress, current_bytes, stage, is_done| {
+        move |file_path, progress, current_bytes, stage, is_done, is_error, error_message| {
             let _ = app_handle.emit(
                 "compression-progress",
                 CompressionProgressEvent {
@@ -231,6 +233,8 @@ async fn process_media_batch(
                     current_bytes,
                     stage: stage.to_string(),
                     is_done,
+                    is_error,
+                    error_message,
                 },
             );
         },
@@ -247,7 +251,7 @@ async fn process_media_batch(
             &config.export_mode,
             batch_folder_timestamp.as_deref(),
             config.crf,
-            move |file_path, progress, current_bytes, stage, is_done| {
+            move |file_path, progress, current_bytes, stage, is_done, is_error, error_message| {
                 let _ = app_handle_video.emit(
                     "compression-progress",
                     CompressionProgressEvent {
@@ -256,6 +260,8 @@ async fn process_media_batch(
                         current_bytes,
                         stage: stage.to_string(),
                         is_done,
+                        is_error,
+                        error_message,
                     },
                 );
             },

@@ -428,11 +428,20 @@ export function useMediaBatch(): UseMediaBatchResult {
         setFiles((prev) =>
           prev.map((f) => {
             if (f.path === payload.file_path) {
+              const status = payload.is_error
+                ? 'error'
+                : payload.is_done
+                ? 'done'
+                : 'running';
               return {
                 ...f,
                 progress: payload.progress_percent,
-                status: payload.is_done ? 'done' : 'running',
-                finalSizeBytes: payload.is_done && payload.current_bytes > 0 ? payload.current_bytes : f.finalSizeBytes,
+                status,
+                errorMessage: payload.error_message,
+                finalSizeBytes:
+                  payload.is_done && !payload.is_error && payload.current_bytes > 0
+                    ? payload.current_bytes
+                    : f.finalSizeBytes,
               };
             }
             return f;
@@ -450,29 +459,30 @@ export function useMediaBatch(): UseMediaBatchResult {
     };
   }, []);
 
-  // Polling télémétrique CPU / RAM périodique pendant la compression
+  // Polling télémétrique CPU / RAM temps réel avec sysinfo (Phase 7 - télémétrie continue sans mock)
   useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isMounted = true;
 
-    if (isTauriEnvironment() && running) {
-      intervalId = setInterval(async () => {
-        try {
-          const metrics = await invoke<SystemMetrics>('get_system_metrics');
+    const fetchMetrics = async () => {
+      if (!isTauriEnvironment()) return;
+      try {
+        const metrics = await invoke<SystemMetrics>('get_system_metrics');
+        if (isMounted) {
           setCpu(Math.round(metrics.cpu_usage));
           setRam(Math.round(metrics.used_memory_gb * 10) / 10);
-        } catch {
-          // Fallback silencieux en cas d'erreur de sonde
         }
-      }, 1000);
-    } else if (!running) {
-      setCpu(8);
-      setRam(2.4);
-    }
+      } catch {
+        // Fallback silencieux en cas de contention ponctuelle
+      }
+    };
+
+    fetchMetrics();
+    const intervalMs = running ? 1000 : 3000;
+    const intervalId = setInterval(fetchMetrics, intervalMs);
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      isMounted = false;
+      clearInterval(intervalId);
     };
   }, [running]);
 

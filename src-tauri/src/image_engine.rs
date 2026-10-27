@@ -246,7 +246,7 @@ pub fn compress_images_batch<F>(
     progress_callback: F,
 ) -> Vec<crate::ProcessedMediaItem>
 where
-    F: Fn(String, f32, u64, &str, bool) + Sync + Send,
+    F: Fn(String, f32, u64, &str, bool, bool, Option<String>) + Sync + Send,
 {
     let num_threads = if options.threads > 0 { options.threads } else { 4 };
     let pool = rayon::ThreadPoolBuilder::new()
@@ -260,7 +260,15 @@ where
             .map(|img_path_str| {
                 let path = Path::new(img_path_str);
                 let orig_len = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-                progress_callback(img_path_str.clone(), 10.0, 0, "Début optimisation...", false);
+                progress_callback(
+                    img_path_str.clone(),
+                    10.0,
+                    0,
+                    "Début optimisation...",
+                    false,
+                    false,
+                    None,
+                );
 
                 let dest_path = crate::export_engine::resolve_export_path(
                     path,
@@ -277,6 +285,8 @@ where
                             res.final_size_bytes as u64,
                             "Optimisation terminée",
                             true,
+                            false,
+                            None,
                         );
                         crate::ProcessedMediaItem {
                             file_path: img_path_str.clone(),
@@ -295,6 +305,8 @@ where
                             0,
                             "Échec d'optimisation",
                             true,
+                            true,
+                            Some(err.to_string()),
                         );
                         crate::ProcessedMediaItem {
                             file_path: img_path_str.clone(),

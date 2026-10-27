@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { IconAlertTriangle } from './Icons';
 import { Button } from './Button';
 
@@ -19,17 +19,72 @@ export const ModalAlert: React.FC<ModalAlertProps> = ({
   onClose,
   confirmLabel = 'Compris',
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
 
+    // Sauvegarde du focus précédent pour restauration à la fermeture (WAI-ARIA)
+    previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+
+    // Focus automatique sur le premier élément actionnable de la modale
+    const timer = setTimeout(() => {
+      const focusable = dialogRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable) {
+        focusable.focus();
+      }
+    }, 20);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
+        return;
+      }
+
+      // Piège à focus (Focus Trap) WAI-ARIA
+      if (e.key === 'Tab') {
+        if (!dialogRef.current) return;
+        const focusables = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      // Restauration du focus à la fermeture
+      if (
+        previouslyFocusedElementRef.current &&
+        typeof previouslyFocusedElementRef.current.focus === 'function'
+      ) {
+        previouslyFocusedElementRef.current.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -37,6 +92,7 @@ export const ModalAlert: React.FC<ModalAlertProps> = ({
   return (
     <div className="gc-overlay" onClick={onClose} role="presentation">
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="alert-title"
@@ -58,6 +114,7 @@ export const ModalAlert: React.FC<ModalAlertProps> = ({
       >
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <span
+            aria-hidden="true"
             style={{
               width: '44px',
               height: '44px',
