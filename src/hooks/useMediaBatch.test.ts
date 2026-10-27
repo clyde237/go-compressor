@@ -334,9 +334,78 @@ describe('useMediaBatch Hook', () => {
       expect(open).toHaveBeenCalledWith({
         multiple: true,
         directory: false,
-        filters: [{ name: 'Photos', extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
+        filters: [
+          {
+            name: 'Toutes les images',
+            extensions: [
+              'jpg',
+              'jpeg',
+              'png',
+              'webp',
+              'avif',
+              'tiff',
+              'tif',
+              'bmp',
+              'gif',
+              'svg',
+              'heic',
+              'heif',
+              'ico',
+              'tga',
+              'pnm',
+              'raw',
+              'cr2',
+              'nef',
+              'arw',
+              'dng',
+            ],
+          },
+          { name: 'Photos courantes', extensions: ['jpg', 'jpeg', 'png', 'webp'] },
+        ],
       });
       expect(result.current.files.some((f) => f.name === 'native_photo.jpg')).toBe(true);
+    });
+
+    it('ouvre la boîte de dialogue native pour importer des vidéos avec tous les formats supportés', async () => {
+      vi.mocked(open).mockResolvedValueOnce(['/path/clip_action.mkv']);
+      const { result } = renderHook(() => useMediaBatch());
+
+      await act(async () => {
+        await result.current.openNativeFileDialog('videos');
+      });
+
+      expect(open).toHaveBeenCalledWith({
+        multiple: true,
+        directory: false,
+        filters: [
+          {
+            name: 'Toutes les vidéos',
+            extensions: [
+              'mp4',
+              'mov',
+              'mkv',
+              'avi',
+              'wmv',
+              'flv',
+              'webm',
+              'm4v',
+              'ts',
+              'mts',
+              'm2ts',
+              'mpg',
+              'mpeg',
+              '3gp',
+              'ogv',
+              'vob',
+              'asf',
+              'rmvb',
+              'divx',
+            ],
+          },
+          { name: 'Vidéos courantes', extensions: ['mp4', 'mov', 'mkv', 'avi'] },
+        ],
+      });
+      expect(result.current.files.some((f) => f.name === 'clip_action.mkv')).toBe(true);
     });
 
     it('sélectionne un répertoire de sortie natif', async () => {

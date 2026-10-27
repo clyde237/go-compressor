@@ -105,7 +105,8 @@ fn inspect_media_files(paths: Vec<String>) -> Result<Vec<MediaFileInfo>, String>
             .to_uppercase();
         let size_bytes = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
         let has_audio = match ext.as_str() {
-            "MP4" | "MOV" | "MKV" | "WEBM" | "AVI" | "M4V" => {
+            "MP4" | "MOV" | "MKV" | "WEBM" | "AVI" | "M4V" | "WMV" | "FLV" | "TS" | "MTS"
+            | "M2TS" | "MPG" | "MPEG" | "3GP" | "OGV" | "VOB" | "ASF" | "RMVB" | "DIVX" => {
                 video_engine::probe_video_has_audio(path)
             }
             _ => None,

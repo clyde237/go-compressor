@@ -59,10 +59,15 @@ pub fn resolve_export_path(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("file");
-    let extension = input_path
+    let raw_extension = input_path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
+    // Les formats bruts ou vectoriels (RAW, HEIC, SVG) sont convertis en JPG pour un rendu universel
+    let extension = match raw_extension.to_lowercase().as_str() {
+        "heic" | "heif" | "raw" | "dng" | "cr2" | "nef" | "arw" | "svg" => "jpg",
+        _ => raw_extension,
+    };
 
     match mode {
         ExportMode::Copy => {
@@ -190,6 +195,14 @@ mod tests {
         let dest = Path::new("/home/user/export");
         let out = resolve_export_path(input, dest, &ExportMode::Suffix, None);
         assert_eq!(out, PathBuf::from("/home/user/photos/vacances_opt.jpg"));
+    }
+
+    #[test]
+    fn test_resolve_export_path_heic_normalization() {
+        let input = Path::new("/home/user/photos/image_iphone.heic");
+        let dest = Path::new("/home/user/export");
+        let out = resolve_export_path(input, dest, &ExportMode::Suffix, None);
+        assert_eq!(out, PathBuf::from("/home/user/photos/image_iphone_opt.jpg"));
     }
 
     #[test]

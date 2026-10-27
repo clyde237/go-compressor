@@ -159,8 +159,61 @@ export function useMediaBatch(): UseMediaBatchResult {
       try {
         const filters =
           kind === 'images'
-            ? [{ name: 'Photos', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
-            : [{ name: 'Vidéos', extensions: ['mp4', 'mov', 'mkv', 'avi'] }];
+            ? [
+                {
+                  name: 'Toutes les images',
+                  extensions: [
+                    'jpg',
+                    'jpeg',
+                    'png',
+                    'webp',
+                    'avif',
+                    'tiff',
+                    'tif',
+                    'bmp',
+                    'gif',
+                    'svg',
+                    'heic',
+                    'heif',
+                    'ico',
+                    'tga',
+                    'pnm',
+                    'raw',
+                    'cr2',
+                    'nef',
+                    'arw',
+                    'dng',
+                  ],
+                },
+                { name: 'Photos courantes', extensions: ['jpg', 'jpeg', 'png', 'webp'] },
+              ]
+            : [
+                {
+                  name: 'Toutes les vidéos',
+                  extensions: [
+                    'mp4',
+                    'mov',
+                    'mkv',
+                    'avi',
+                    'wmv',
+                    'flv',
+                    'webm',
+                    'm4v',
+                    'ts',
+                    'mts',
+                    'm2ts',
+                    'mpg',
+                    'mpeg',
+                    '3gp',
+                    'ogv',
+                    'vob',
+                    'asf',
+                    'rmvb',
+                    'divx',
+                  ],
+                },
+                { name: 'Vidéos courantes', extensions: ['mp4', 'mov', 'mkv', 'avi'] },
+              ];
 
         const selected = await open({
           multiple: true,

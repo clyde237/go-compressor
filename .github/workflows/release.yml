@@ -55,14 +55,15 @@ jobs:
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev \
-            ffmpeg
+            librsvg2-dev
           mkdir -p src-tauri/binaries
-          cp $(which ffmpeg) src-tauri/binaries/gocompressor-ffmpeg-x86_64-unknown-linux-gnu
-          cp $(which ffprobe) src-tauri/binaries/gocompressor-ffprobe-x86_64-unknown-linux-gnu
-          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu
-          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu
+          echo "Installation des binaires FFmpeg 100% statiques pour Linux (autonomes, zéro dépendance .so)..."
+          curl -sSL "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz" | gunzip > src-tauri/binaries/gocompressor-ffmpeg-x86_64-unknown-linux-gnu
+          curl -sSL "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-linux-x64.gz" | gunzip > src-tauri/binaries/gocompressor-ffprobe-x86_64-unknown-linux-gnu
+          cp src-tauri/binaries/gocompressor-ffmpeg-x86_64-unknown-linux-gnu src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu
+          cp src-tauri/binaries/gocompressor-ffprobe-x86_64-unknown-linux-gnu src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu
           chmod +x src-tauri/binaries/*
+          ./src-tauri/binaries/gocompressor-ffmpeg-x86_64-unknown-linux-gnu -version | head -n 2
 
       - name: Setup Windows sidecars
         if: matrix.platform == 'windows-latest'
@@ -84,18 +85,22 @@ jobs:
       - name: Setup macOS sidecars
         if: matrix.platform == 'macos-latest'
         run: |
-          brew install ffmpeg
           mkdir -p src-tauri/binaries
           ARCH=$(uname -m)
           if [ "$ARCH" = "arm64" ]; then
             TRIPLE="aarch64-apple-darwin"
+            STATIC_FFMPEG="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-arm64.gz"
+            STATIC_FFPROBE="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-darwin-arm64.gz"
           else
             TRIPLE="x86_64-apple-darwin"
+            STATIC_FFMPEG="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-x64.gz"
+            STATIC_FFPROBE="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-darwin-x64.gz"
           fi
-          cp $(which ffmpeg) "src-tauri/binaries/gocompressor-ffmpeg-$TRIPLE"
-          cp $(which ffprobe) "src-tauri/binaries/gocompressor-ffprobe-$TRIPLE"
-          cp $(which ffmpeg) "src-tauri/binaries/ffmpeg-$TRIPLE"
-          cp $(which ffprobe) "src-tauri/binaries/ffprobe-$TRIPLE"
+          echo "Installation des binaires FFmpeg statiques pour macOS ($TRIPLE)..."
+          curl -sSL "$STATIC_FFMPEG" | gunzip > "src-tauri/binaries/gocompressor-ffmpeg-$TRIPLE"
+          curl -sSL "$STATIC_FFPROBE" | gunzip > "src-tauri/binaries/gocompressor-ffprobe-$TRIPLE"
+          cp "src-tauri/binaries/gocompressor-ffmpeg-$TRIPLE" "src-tauri/binaries/ffmpeg-$TRIPLE"
+          cp "src-tauri/binaries/gocompressor-ffprobe-$TRIPLE" "src-tauri/binaries/ffprobe-$TRIPLE"
           chmod +x src-tauri/binaries/*
 
       - name: Install frontend dependencies
