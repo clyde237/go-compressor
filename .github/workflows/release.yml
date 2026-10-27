@@ -66,32 +66,27 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
+          choco install ffmpeg -y
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
-          $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue)
-          $ffprobe = (Get-Command ffprobe -ErrorAction SilentlyContinue)
-          if ($ffmpeg) { Copy-Item $ffmpeg.Source src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force }
-          if ($ffprobe) { Copy-Item $ffprobe.Source src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force }
+          $ffmpeg = (Get-Command ffmpeg).Source
+          $ffprobe = (Get-Command ffprobe).Source
+          Copy-Item $ffmpeg src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force
+          Copy-Item $ffprobe src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force
 
       - name: Setup macOS sidecars
         if: matrix.platform == 'macos-latest'
         run: |
+          brew install ffmpeg
           mkdir -p src-tauri/binaries
-          FFMPEG_BIN=$(which ffmpeg || echo "")
-          FFPROBE_BIN=$(which ffprobe || echo "")
           ARCH=$(uname -m)
           if [ "$ARCH" = "arm64" ]; then
             TRIPLE="aarch64-apple-darwin"
           else
             TRIPLE="x86_64-apple-darwin"
           fi
-          if [ -n "$FFMPEG_BIN" ]; then
-            cp "$FFMPEG_BIN" "src-tauri/binaries/ffmpeg-$TRIPLE"
-            chmod +x "src-tauri/binaries/ffmpeg-$TRIPLE"
-          fi
-          if [ -n "$FFPROBE_BIN" ]; then
-            cp "$FFPROBE_BIN" "src-tauri/binaries/ffprobe-$TRIPLE"
-            chmod +x "src-tauri/binaries/ffprobe-$TRIPLE"
-          fi
+          cp $(which ffmpeg) "src-tauri/binaries/ffmpeg-$TRIPLE"
+          cp $(which ffprobe) "src-tauri/binaries/ffprobe-$TRIPLE"
+          chmod +x src-tauri/binaries/*
 
       - name: Install frontend dependencies
         run: npm ci
