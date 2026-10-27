@@ -180,29 +180,35 @@ gantt
 ### Phase 3 : Infrastructure IPC & Gestion d'État Frontend
 *Objectif : Créer une architecture réactive, typée et sécurisée entre React et Rust.*
 
-- [ ] **3.1 Typages TypeScript Miroir (`src/types/ipc.ts`) :**
-  - Interface `MediaFile` : ID unique, chemin absolu système (`path`), nom, taille originale en octets, type MIME/extension, statut (`idle`, `processing`, `done`, `error`), progression (0 à 100), taille finale en octets.
+- [x] **3.1 Typages TypeScript Miroir (`src/types/ipc.ts`) :**
+  - Interface `MediaItem` : ID unique, chemin absolu système (`path`), nom, taille originale en octets, type MIME/extension, statut (`idle`, `wait`, `running`, `done`, `error`), progression (0 à 100), taille finale en octets.
   - Interface `BatchConfig` :
     - `target_min_bytes: number` (800 Ko = 819 200 octets).
     - `target_max_bytes: number` (2 Mo = 2 097 152 octets).
-    - `target_bytes: number` (valeur choisie via le slider, ex: 1 130 496 octets).
+    - `target_bytes: number` (valeur choisie via le slider, ex: 1 104 Ko).
     - `q_min: number` (65) / `q_max: number` (92).
-    - `parallel_threads: number` (1 à 8).
+    - `threads: number` (1 à 8).
     - `crf: number` (23 à 28).
     - `preserve_exif: boolean`.
-    - `export_mode: 'copy' | 'suffix' | 'folder' | 'zip'`.
+    - `export_mode: 'copy' | 'suffix' | 'folder'`.
     - `output_directory: string`.
-  - Interface `ProgressPayload` : `file_id: string`, `progress_percent: number`, `stage: string`, `current_bytes: number`.
-- [ ] **3.2 Store Global / Hook d'État (`src/hooks/useMediaBatch.ts`) :**
-  - Gestion centralisée des listes d'images et de vidéos.
+  - Interface `CompressionProgressPayload` : `file_path: string`, `progress_percent: number`, `stage: string`, `current_bytes: number`, `is_done: boolean`.
+- [x] **3.2 Store Global / Hook d'État (`src/hooks/useMediaBatch.ts`) :**
+  - Gestion centralisée et réactive des listes d'images et de vidéos.
   - Application immédiate des **gardes-fous de quota côté UI** :
-    - Si l'utilisateur tente d'importer plus de 50 photos : ouverture de l'alerte modale bloquante.
-    - Si l'utilisateur tente d'importer plus de 20 vidéos : ouverture de l'alerte modale bloquante immédiate (CDC US-02).
-  - Écoute active de l'événement IPC Tauri `compression-progress` pour animer les barres en direct sans re-render inutile.
-- [ ] **3.3 Intégration Native des Boîtes de Dialogue :**
-  - Remplacer les sélecteurs simulés par l'appel à `@tauri-apps/plugin-dialog` :
-    - `open({ multiple: true, filters: [{ name: 'Médias', extensions: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'mkv', 'avi'] }] })`.
-    - `open({ directory: true, multiple: false })` pour le choix du répertoire de sortie.
+    - Blocage immédiat avec alerte modale si $> 50$ photos.
+    - Blocage immédiat avec alerte modale si $> 20$ vidéos (CDC US-02).
+  - Écoute active de l'événement IPC Tauri `compression-progress` pour animer les barres en direct.
+  - Polling télémétrique système via la commande `get_system_metrics`.
+- [x] **3.3 Intégration Native des Boîtes de Dialogue & Commandes IPC :**
+  - Intégration de `@tauri-apps/plugin-dialog` :
+    - `open({ multiple: true, filters: [...] })` selon l'onglet actif (photos ou vidéos).
+    - `open({ directory: true })` pour le choix du répertoire de sortie.
+    - `save({ filters: [{ name: 'Archive ZIP', extensions: ['zip'] }] })` pour le téléchargement du lot compressé.
+  - Implémentation côté Rust (`src-tauri/src/lib.rs`) des commandes :
+    - `process_media_batch(images, videos, config) -> Result<BatchReport, String>` avec rejet strict si $> 20$ vidéos ou $> 50$ photos.
+    - `get_system_metrics() -> Result<SystemMetrics, String>` avec état géré thread-safe.
+    - `create_zip_archive(files, destination) -> Result<u64, String>`.
 
 ---
 

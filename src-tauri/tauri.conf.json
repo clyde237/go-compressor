@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "GO COMPRESSOR",
         "width": 1180,
         "height": 820,
