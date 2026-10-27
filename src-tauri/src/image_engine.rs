@@ -176,6 +176,36 @@ pub fn inject_exif(jpeg: Vec<u8>, exif: &[u8]) -> Vec<u8> {
     result
 }
 
+/// Décode une image depuis les octets en mémoire avec fallback FFmpeg pour les formats exotiques (HEIC, AVIF, SVG, RAW...)
+pub fn load_image_with_fallback(
+    bytes: &[u8],
+    path: &Path,
+) -> Result<DynamicImage, ImageEngineError> {
+    if let Ok(img) = image::load_from_memory(bytes) {
+        return Ok(img);
+    }
+
+    // Fallback FFmpeg : décoder une image complexe (HEIC, AVIF, RAW, SVG, etc.) en PNG standard via un tube mémoire
+    let ffmpeg = crate::video_engine::resolve_ffmpeg_path();
+    let maybe_img = std::process::Command::new(&ffmpeg)
+        .arg("-v")
+        .arg("error")
+        .arg("-i")
+        .arg(path)
+        .args(["-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success() && !o.stdout.is_empty())
+        .and_then(|o| image::load_from_memory(&o.stdout).ok());
+
+    if let Some(img) = maybe_img {
+        return Ok(img);
+    }
+
+    image::load_from_memory(bytes)
+        .map_err(|e| ImageEngineError::ImageDecodeError(path.to_path_buf(), e))
+}
+
 /// Compresse une image unique en appliquant l'algorithme adaptatif multi-échelle et dichotomique
 pub fn compress_single_image(
     input_path: &Path,
@@ -186,8 +216,7 @@ pub fn compress_single_image(
         fs::read(input_path).map_err(|e| ImageEngineError::IoError(input_path.to_path_buf(), e))?;
     let original_size = original_bytes.len();
 
-    let img = image::load_from_memory(&original_bytes)
-        .map_err(|e| ImageEngineError::ImageDecodeError(input_path.to_path_buf(), e))?;
+    let img = load_image_with_fallback(&original_bytes, input_path)?;
 
     let exif = if options.preserve_exif {
         extract_exif(&original_bytes)
@@ -414,6 +443,37 @@ mod tests {
 
         let _ = fs::remove_file(in_path);
         let _ = fs::remove_file(out_path);
+        let _ = fs::remove_dir(temp_dir);
+    }
+
+    #[test]
+    fn test_compress_single_image_png_input() {
+        let temp_dir = std::env::temp_dir().join("go_compressor_format_test");
+        let _ = fs::create_dir_all(&temp_dir);
+        let in_png = temp_dir.join("test_in.png");
+        let out_jpg = temp_dir.join("test_out.jpg");
+
+        let img = create_test_image(300, 300);
+        img.save_with_format(&in_png, image::ImageFormat::Png)
+            .expect("save png");
+
+        let options = ImageCompressionOptions {
+            target_min_bytes: 1_000,
+            target_max_bytes: 500_000,
+            target_bytes: 50_000,
+            q_min: 65,
+            q_max: 92,
+            threads: 2,
+            preserve_exif: false,
+        };
+
+        let res =
+            compress_single_image(&in_png, &out_jpg, &options).expect("compression png reussie");
+        assert!(res.final_size_bytes > 0);
+        assert!(out_jpg.exists());
+
+        let _ = fs::remove_file(in_png);
+        let _ = fs::remove_file(out_jpg);
         let _ = fs::remove_dir(temp_dir);
     }
 }

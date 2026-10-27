@@ -181,7 +181,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         >
           <IconUpload size={56} style={{ stroke: '#0a243d' }} />
           <span className="gc-drop-title">Glissez-déposez vos photos ici</span>
-          <span className="gc-drop-hint">Formats JPG, PNG, WebP • Jusqu'à 50 photos (~15 Mo) par lot</span>
+          <span className="gc-drop-hint">Formats JPG, PNG, WebP, AVIF, HEIC, TIFF, BMP, RAW… • Jusqu'à 50 photos (~15 Mo) par lot</span>
         </button>
       ) : (
         <button
@@ -196,7 +196,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <IconUpload size={56} style={{ stroke: '#ffffff' }} />
           <span className="gc-drop-title" style={{ color: '#ffffff' }}>Glissez-déposez vos vidéos ici</span>
           <span className="gc-drop-hint" style={{ color: '#cbd9e1' }}>
-            Formats MP4, MOV, MKV, AVI • Limite stricte : 20 vidéos maximum
+            Formats MP4, MOV, MKV, AVI, WMV, FLV, WEBM, TS… • Limite stricte : 20 vidéos maximum
           </span>
         </button>
       )}

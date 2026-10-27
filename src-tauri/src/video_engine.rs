@@ -109,23 +109,27 @@ pub enum VideoEvent {
     },
 }
 
+/// Vérifie si un binaire existe, est accessible et répond avec succès à `-version`
+pub fn is_working_binary(path: &Path) -> bool {
+    if path.as_os_str().is_empty() {
+        return false;
+    }
+    // Si c'est un chemin avec des composantes de répertoire, vérifie l'existence physique
+    if (path.is_absolute() || path.components().count() > 1) && !path.exists() {
+        return false;
+    }
+    std::process::Command::new(path)
+        .arg("-version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 /// Résout le chemin absolu ou relatif vers l'exécutable FFmpeg
 pub fn resolve_ffmpeg_path() -> PathBuf {
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    // 1. Dossier bin/ à la racine du projet ou parent
-    for bin_cand in [
-        format!("bin/gocompressor-ffmpeg{ext}"),
-        format!("bin/ffmpeg{ext}"),
-        format!("../bin/gocompressor-ffmpeg{ext}"),
-        format!("../bin/ffmpeg{ext}"),
-    ] {
-        let p = PathBuf::from(bin_cand);
-        if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
-            return p;
-        }
-    }
-
-    // 2. Dossier binaries/ avec triplet cible Tauri
     let host_triple = if cfg!(target_os = "windows") {
         "x86_64-pc-windows-msvc"
     } else if cfg!(target_os = "macos") {
@@ -138,21 +142,7 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
         "x86_64-unknown-linux-gnu"
     };
 
-    for sidecar_cand in [
-        format!("src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
-        format!("binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
-        format!("../src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
-        format!("src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
-        format!("binaries/ffmpeg-{host_triple}{ext}"),
-        format!("../src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
-    ] {
-        let p = PathBuf::from(sidecar_cand);
-        if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
-            return p;
-        }
-    }
-
-    // 3. Dossier relatif à l'exécutable en cours d'exécution
+    // 1. Dossier relatif à l'exécutable en cours d'exécution (déploiement Tauri installé)
     if let Some(exe_dir) = std::env::current_exe()
         .ok()
         .and_then(|e| e.parent().map(|p| p.to_path_buf()))
@@ -164,54 +154,82 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
             format!("ffmpeg{ext}"),
         ] {
             let exe_sidecar = exe_dir.join(exe_sidecar_name);
-            if exe_sidecar.exists()
-                && exe_sidecar
-                    .metadata()
-                    .map(|m| m.len() > 100)
-                    .unwrap_or(false)
-            {
+            if is_working_binary(&exe_sidecar) {
                 return exe_sidecar;
             }
         }
     }
 
-    // 4. Fallback vers le PATH système (binaire préfixé gocompressor ou ffmpeg natif)
+    // 2. Dossier bin/ à la racine du projet ou parent (développement / tests)
+    for bin_cand in [
+        format!("bin/gocompressor-ffmpeg{ext}"),
+        format!("bin/ffmpeg{ext}"),
+        format!("../bin/gocompressor-ffmpeg{ext}"),
+        format!("../bin/ffmpeg{ext}"),
+    ] {
+        let p = PathBuf::from(bin_cand);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    // 3. Dossier binaries/ avec triplet cible Tauri
+    for sidecar_cand in [
+        format!("src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/gocompressor-ffmpeg-{host_triple}{ext}"),
+        format!("src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
+        format!("binaries/ffmpeg-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/ffmpeg-{host_triple}{ext}"),
+    ] {
+        let p = PathBuf::from(sidecar_cand);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    // 4. Binaire préfixé gocompressor dans le PATH
     let scoped_bin = if cfg!(windows) {
         "gocompressor-ffmpeg.exe"
     } else {
         "gocompressor-ffmpeg"
     };
-    if std::process::Command::new(scoped_bin)
-        .arg("-version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
-        return PathBuf::from(scoped_bin);
+    let scoped_path = PathBuf::from(scoped_bin);
+    if is_working_binary(&scoped_path) {
+        return scoped_path;
     }
 
-    if cfg!(windows) {
-        PathBuf::from("ffmpeg.exe")
+    // 5. Binaire standard ffmpeg dans le PATH
+    let sys_bin = if cfg!(windows) {
+        "ffmpeg.exe"
     } else {
-        PathBuf::from("ffmpeg")
+        "ffmpeg"
+    };
+    let sys_path = PathBuf::from(sys_bin);
+    if is_working_binary(&sys_path) {
+        return sys_path;
     }
+
+    // 6. Chemins absolus usuels sous Unix / Windows
+    for fallback in [
+        "/usr/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/opt/homebrew/bin/ffmpeg",
+        "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe",
+        "C:\\ffmpeg\\bin\\ffmpeg.exe",
+    ] {
+        let p = PathBuf::from(fallback);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    sys_path
 }
 
 /// Résout le chemin absolu ou relatif vers l'exécutable ffprobe
 pub fn resolve_ffprobe_path() -> PathBuf {
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    for bin_cand in [
-        format!("bin/gocompressor-ffprobe{ext}"),
-        format!("bin/ffprobe{ext}"),
-        format!("../bin/gocompressor-ffprobe{ext}"),
-        format!("../bin/ffprobe{ext}"),
-    ] {
-        let p = PathBuf::from(bin_cand);
-        if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
-            return p;
-        }
-    }
-
     let host_triple = if cfg!(target_os = "windows") {
         "x86_64-pc-windows-msvc"
     } else if cfg!(target_os = "macos") {
@@ -224,20 +242,7 @@ pub fn resolve_ffprobe_path() -> PathBuf {
         "x86_64-unknown-linux-gnu"
     };
 
-    for sidecar_cand in [
-        format!("src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
-        format!("binaries/gocompressor-ffprobe-{host_triple}{ext}"),
-        format!("../src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
-        format!("src-tauri/binaries/ffprobe-{host_triple}{ext}"),
-        format!("binaries/ffprobe-{host_triple}{ext}"),
-        format!("../src-tauri/binaries/ffprobe-{host_triple}{ext}"),
-    ] {
-        let p = PathBuf::from(sidecar_cand);
-        if p.exists() && p.metadata().map(|m| m.len() > 100).unwrap_or(false) {
-            return p;
-        }
-    }
-
+    // 1. Dossier relatif à l'exécutable en cours d'exécution
     if let Some(exe_dir) = std::env::current_exe()
         .ok()
         .and_then(|e| e.parent().map(|p| p.to_path_buf()))
@@ -249,36 +254,77 @@ pub fn resolve_ffprobe_path() -> PathBuf {
             format!("ffprobe{ext}"),
         ] {
             let exe_sidecar = exe_dir.join(exe_sidecar_name);
-            if exe_sidecar.exists()
-                && exe_sidecar
-                    .metadata()
-                    .map(|m| m.len() > 100)
-                    .unwrap_or(false)
-            {
+            if is_working_binary(&exe_sidecar) {
                 return exe_sidecar;
             }
         }
     }
 
+    // 2. Dossier bin/ à la racine du projet ou parent
+    for bin_cand in [
+        format!("bin/gocompressor-ffprobe{ext}"),
+        format!("bin/ffprobe{ext}"),
+        format!("../bin/gocompressor-ffprobe{ext}"),
+        format!("../bin/ffprobe{ext}"),
+    ] {
+        let p = PathBuf::from(bin_cand);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    // 3. Dossier binaries/ avec triplet cible Tauri
+    for sidecar_cand in [
+        format!("src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
+        format!("binaries/gocompressor-ffprobe-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/gocompressor-ffprobe-{host_triple}{ext}"),
+        format!("src-tauri/binaries/ffprobe-{host_triple}{ext}"),
+        format!("binaries/ffprobe-{host_triple}{ext}"),
+        format!("../src-tauri/binaries/ffprobe-{host_triple}{ext}"),
+    ] {
+        let p = PathBuf::from(sidecar_cand);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    // 4. Binaire préfixé gocompressor dans le PATH
     let scoped_bin = if cfg!(windows) {
         "gocompressor-ffprobe.exe"
     } else {
         "gocompressor-ffprobe"
     };
-    if std::process::Command::new(scoped_bin)
-        .arg("-version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
-        return PathBuf::from(scoped_bin);
+    let scoped_path = PathBuf::from(scoped_bin);
+    if is_working_binary(&scoped_path) {
+        return scoped_path;
     }
 
-    if cfg!(windows) {
-        PathBuf::from("ffprobe.exe")
+    // 5. Binaire standard ffprobe dans le PATH
+    let sys_bin = if cfg!(windows) {
+        "ffprobe.exe"
     } else {
-        PathBuf::from("ffprobe")
+        "ffprobe"
+    };
+    let sys_path = PathBuf::from(sys_bin);
+    if is_working_binary(&sys_path) {
+        return sys_path;
     }
+
+    // 6. Chemins absolus usuels sous Unix / Windows
+    for fallback in [
+        "/usr/bin/ffprobe",
+        "/usr/local/bin/ffprobe",
+        "/opt/homebrew/bin/ffprobe",
+        "C:\\ProgramData\\chocolatey\\bin\\ffprobe.exe",
+        "C:\\ffmpeg\\bin\\ffprobe.exe",
+    ] {
+        let p = PathBuf::from(fallback);
+        if is_working_binary(&p) {
+            return p;
+        }
+    }
+
+    sys_path
 }
 
 /// Obtient la durée d'une vidéo en secondes avec ffprobe ou fallback ffmpeg
@@ -339,14 +385,14 @@ pub fn parse_duration_from_stderr(text: &str) -> Option<f64> {
     }
 }
 
-/// Vérifie si une vidéo contient au moins un flux audio via ffprobe
+/// Vérifie si une vidéo contient au moins un flux audio via ffprobe (avec fallback ffmpeg -i)
 pub fn probe_video_has_audio(input: &Path) -> Option<bool> {
     if !input.exists() {
         return None;
     }
 
     let ffprobe = resolve_ffprobe_path();
-    let output = std::process::Command::new(&ffprobe)
+    let probe_res = std::process::Command::new(&ffprobe)
         .args([
             "-v",
             "error",
@@ -359,10 +405,28 @@ pub fn probe_video_has_audio(input: &Path) -> Option<bool> {
         ])
         .arg(input)
         .output()
-        .ok()?;
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            let stdout_text = String::from_utf8_lossy(&o.stdout);
+            stdout_text.trim() == "audio"
+        });
 
-    let stdout_text = String::from_utf8_lossy(&output.stdout);
-    Some(stdout_text.trim() == "audio")
+    if let Some(has_audio) = probe_res {
+        return Some(has_audio);
+    }
+
+    // Fallback : inspection du flux d'erreur de ffmpeg -i
+    let ffmpeg = resolve_ffmpeg_path();
+    std::process::Command::new(&ffmpeg)
+        .arg("-i")
+        .arg(input)
+        .output()
+        .ok()
+        .map(|o| {
+            let stderr_text = String::from_utf8_lossy(&o.stderr);
+            stderr_text.contains("Audio:")
+        })
 }
 
 /// Encode un unique fichier vidéo avec FFmpeg et parsing temps réel
@@ -393,7 +457,8 @@ where
         .output
         .extension()
         .and_then(|e| e.to_str())
-        .unwrap_or("mp4");
+        .unwrap_or("mp4")
+        .to_lowercase();
     let part_output = job.output.with_file_name(format!("{stem}_temp_part.{ext}"));
 
     if let Some(parent) = part_output.parent() {
@@ -404,38 +469,36 @@ where
     let ffmpeg_bin = resolve_ffmpeg_path();
 
     let mut cmd = Command::new(&ffmpeg_bin);
-    cmd.arg("-y")
-        .arg("-i")
-        .arg(&job.input)
-        .args([
-            "-map",
-            "0:v:0?",
-            "-map",
-            "0:a?",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "medium",
-            "-crf",
-            &crf.to_string(),
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
-            "-ac",
-            "2",
-            "-ar",
-            "44100",
-            "-f",
-            "mp4",
-            "-progress",
-            "pipe:1",
-            "-nostats",
-        ])
+    cmd.arg("-y").arg("-i").arg(&job.input).args([
+        "-map",
+        "0:v:0?",
+        "-map",
+        "0:a?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        &crf.to_string(),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-ac",
+        "2",
+        "-ar",
+        "44100",
+    ]);
+
+    if ext == "mp4" || ext == "m4v" {
+        cmd.args(["-movflags", "+faststart", "-f", "mp4"]);
+    } else if ext == "mov" {
+        cmd.args(["-movflags", "+faststart", "-f", "mov"]);
+    }
+
+    cmd.args(["-progress", "pipe:1", "-nostats"])
         .arg(&part_output)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -785,6 +848,13 @@ mod tests {
     fn test_resolve_ffmpeg_path() {
         let path = resolve_ffmpeg_path();
         assert!(!path.as_os_str().is_empty());
+        assert!(is_working_binary(&path));
+    }
+
+    #[test]
+    fn test_is_working_binary_with_invalid_path() {
+        let invalid = Path::new("/path/that/does/not/exist/or_crash");
+        assert!(!is_working_binary(invalid));
     }
 
     #[tokio::test]
