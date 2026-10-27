@@ -25,6 +25,7 @@ tokio = { version = "1", features = ["full"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sysinfo = "0.33"
 thiserror = "2"
+kamadak-exif = "0.5"
 
 [profile.release]
 codegen-units = 1

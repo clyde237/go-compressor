@@ -105,63 +105,42 @@ async fn process_media_batch(
         ));
     }
 
-    let mut report_items = Vec::new();
     let out_dir = Path::new(&config.output_directory);
 
-    // Traitement des images
-    for img_path_str in &images {
-        let path = Path::new(img_path_str);
-        let orig_len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    // 2. Traitement des images parallélisé avec Rayon (Phase 4)
+    let image_opts = image_engine::ImageCompressionOptions {
+        target_min_bytes: config.target_min_bytes,
+        target_max_bytes: config.target_max_bytes,
+        target_bytes: config.target_bytes,
+        q_min: config.q_min,
+        q_max: config.q_max,
+        threads: config.threads,
+        preserve_exif: config.preserve_exif,
+    };
 
-        // Émission du début de traitement
-        let _ = app.emit(
-            "compression-progress",
-            CompressionProgressEvent {
-                file_path: img_path_str.clone(),
-                progress_percent: 10.0,
-                current_bytes: 0,
-                stage: "Démarrage optimisation...".into(),
-                is_done: false,
-            },
-        );
+    let app_handle = app.clone();
+    let image_reports = image_engine::compress_images_batch(
+        &images,
+        out_dir,
+        &config.export_mode,
+        &image_opts,
+        move |file_path, progress, current_bytes, stage, is_done| {
+            let _ = app_handle.emit(
+                "compression-progress",
+                CompressionProgressEvent {
+                    file_path,
+                    progress_percent: progress,
+                    current_bytes,
+                    stage: stage.to_string(),
+                    is_done,
+                },
+            );
+        },
+    );
 
-        let dest_path = export_engine::resolve_export_path(
-            path,
-            out_dir,
-            &config.export_mode,
-            None,
-        );
+    let mut report_items = image_reports;
 
-        let final_len = (orig_len as f64 * 0.12) as u64; // Estimation de base avant exécution du moteur complet Phase 4
-        let gain = if orig_len > 0 && final_len < orig_len {
-            (((orig_len - final_len) as f64 / orig_len as f64) * 100.0) as u32
-        } else {
-            0
-        };
-
-        let _ = app.emit(
-            "compression-progress",
-            CompressionProgressEvent {
-                file_path: img_path_str.clone(),
-                progress_percent: 100.0,
-                current_bytes: final_len,
-                stage: "Optimisation terminée".into(),
-                is_done: true,
-            },
-        );
-
-        report_items.push(ProcessedMediaItem {
-            file_path: img_path_str.clone(),
-            original_size_bytes: orig_len,
-            output_size_bytes: final_len,
-            output_path: dest_path.to_string_lossy().to_string(),
-            gain_percent: gain,
-            success: true,
-            error_message: None,
-        });
-    }
-
-    // Traitement des vidéos (séquentiel)
+    // 3. Traitement des vidéos (séquentiel - Phase 5)
     for vid_path_str in &videos {
         let path = Path::new(vid_path_str);
         let orig_len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
@@ -184,7 +163,7 @@ async fn process_media_batch(
             None,
         );
 
-        let final_len = (orig_len as f64 * 0.35) as u64; // Estimation de base avant exécution du moteur complet Phase 5
+        let final_len = (orig_len as f64 * 0.35) as u64;
         let gain = if orig_len > 0 && final_len < orig_len {
             (((orig_len - final_len) as f64 / orig_len as f64) * 100.0) as u32
         } else {

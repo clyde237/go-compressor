@@ -215,7 +215,7 @@ gantt
 ### Phase 4 : Moteur de Compression d'Images Rust (`image_engine.rs`)
 *Objectif : Traiter en parallèle les images lourdes (~15 Mo) pour les calibrer avec précision dans la fourchette 800 Ko – 2 Mo.*
 
-- [ ] **4.1 Algorithme de Recherche Dichotomique (Qualité $Q$) :**
+- [x] **4.1 Algorithme de Recherche Dichotomique (Qualité $Q$) :**
   - Définir les constantes absolues :
     - `TARGET_MIN_BYTES: u64 = 800 * 1024` (819 200 octets).
     - `TARGET_MAX_BYTES: u64 = 2 * 1024 * 1024` (2 097 152 octets).
@@ -225,12 +225,12 @@ gantt
       - Si le poids $> \text{target\_bytes}$, alors $Q_{\max} \leftarrow Q_{\text{mid}} - 1$.
       - Si le poids $< \text{target\_bytes}$, alors $Q_{\min} \leftarrow Q_{\text{mid}} + 1$.
       - Arrêt dès convergence ou quand le poids est compris dans l'intervalle cible.
-- [ ] **4.2 Redimensionnement Adaptatif :**
+- [x] **4.2 Redimensionnement Adaptatif :**
   - Si l'image source dépasse $4K$ / $8K$ et ne peut pas atteindre $< 2\text{ Mo}$ même à $Q=65$, appliquer un ratio de sous-échantillonnage bilinéaire/Lanczos intelligent pour ramener la résolution à un standard haute définition tout en restant imperceptible à l'œil nu.
-- [ ] **4.3 Parallélisation Multi-Cœur avec `rayon` :**
+- [x] **4.3 Parallélisation Multi-Cœur avec `rayon` :**
   - Traitement du vecteur de fichiers d'images via `images.par_iter().map(...)`.
   - Notification en continu au frontend via `app_handle.emit("compression-progress", ...)` à la fin de chaque sous-étape de compression.
-- [ ] **4.4 Préservation des Métadonnées EXIF :**
+- [x] **4.4 Préservation des Métadonnées EXIF :**
   - Si `preserve_exif == true`, extraction des en-têtes EXIF de l'image source (orientation, modèle d'appareil, date de prise de vue) et réinjection dans le conteneur final (JPEG/WebP).
 
 ---
