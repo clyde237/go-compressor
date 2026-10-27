@@ -79,15 +79,36 @@ jobs:
           cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu
           chmod +x src-tauri/binaries/*
 
-      - name: Setup Windows FFmpeg in PATH
+      - name: Setup Windows FFmpeg & sidecars
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          choco install ffmpeg --no-progress
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries
+          $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue)
+          $ffprobe = (Get-Command ffprobe -ErrorAction SilentlyContinue)
+          if ($ffmpeg) { Copy-Item $ffmpeg.Source src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force }
+          if ($ffprobe) { Copy-Item $ffprobe.Source src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force }
 
-      - name: Setup macOS FFmpeg in PATH
+      - name: Setup macOS FFmpeg & sidecars
         if: runner.os == 'macOS'
         run: |
-          brew install ffmpeg
+          mkdir -p src-tauri/binaries
+          FFMPEG_BIN=$(which ffmpeg || true)
+          FFPROBE_BIN=$(which ffprobe || true)
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            TRIPLE="aarch64-apple-darwin"
+          else
+            TRIPLE="x86_64-apple-darwin"
+          fi
+          if [ -n "$FFMPEG_BIN" ]; then
+            cp "$FFMPEG_BIN" "src-tauri/binaries/ffmpeg-$TRIPLE"
+            chmod +x "src-tauri/binaries/ffmpeg-$TRIPLE"
+          fi
+          if [ -n "$FFPROBE_BIN" ]; then
+            cp "$FFPROBE_BIN" "src-tauri/binaries/ffprobe-$TRIPLE"
+            chmod +x "src-tauri/binaries/ffprobe-$TRIPLE"
+          fi
 
       - name: Check Rust formatting (cargo fmt)
         run: cargo fmt --check --manifest-path src-tauri/Cargo.toml

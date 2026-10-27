@@ -64,17 +64,13 @@ jobs:
 
       - name: Setup Windows sidecars
         if: matrix.platform == 'windows-latest'
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p src-tauri/binaries
-          FFMPEG_EXE=$(which ffmpeg || echo "")
-          FFPROBE_EXE=$(which ffprobe || echo "")
-          if [ -n "$FFMPEG_EXE" ]; then
-            cp "$FFMPEG_EXE" src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
-          fi
-          if [ -n "$FFPROBE_EXE" ]; then
-            cp "$FFPROBE_EXE" src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe
-          fi
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries
+          $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue)
+          $ffprobe = (Get-Command ffprobe -ErrorAction SilentlyContinue)
+          if ($ffmpeg) { Copy-Item $ffmpeg.Source src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -Force }
+          if ($ffprobe) { Copy-Item $ffprobe.Source src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe -Force }
 
       - name: Setup macOS sidecars
         if: matrix.platform == 'macos-latest'
