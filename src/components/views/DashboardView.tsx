@@ -302,6 +302,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                       <span style={{ fontWeight: 500 }}>{item.name}</span>
                       <span className="gc-muted"> — {initialStr}</span>
+                      {item.kind === 'video' && item.hasAudio === false && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#9A3412',
+                            background: '#FFEDD5',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: '6px',
+                          }}
+                          title="Cette vidéo source ne contient aucune piste audio"
+                        >
+                          Source muette
+                        </span>
+                      )}
+                      {item.kind === 'video' && item.hasAudio === true && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            color: 'var(--success-700)',
+                            background: 'var(--tint-50)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: '6px',
+                          }}
+                        >
+                          Audio stéréo
+                        </span>
+                      )}
                       {isDone && finalStr ? (
                         <span style={{ color: 'var(--brand-text)' }}> → {finalStr}</span>
                       ) : null}

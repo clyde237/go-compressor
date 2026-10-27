@@ -111,15 +111,27 @@ export function useMediaBatch(): UseMediaBatchResult {
 
       // Sonde asynchrone des métadonnées réelles via la commande Rust
       if (isTauriEnvironment()) {
-        invoke<{ path: string; name: string; size_bytes: number; extension: string }[]>(
-          'inspect_media_files',
-          { paths }
-        )
+        invoke<
+          {
+            path: string;
+            name: string;
+            size_bytes: number;
+            extension: string;
+            has_audio?: boolean | null;
+          }[]
+        >('inspect_media_files', { paths })
           .then((inspected) => {
             setFiles((prev) =>
               prev.map((f) => {
                 const info = inspected.find((item) => item.path === f.path);
-                return info ? { ...f, sizeBytes: info.size_bytes } : f;
+                return info
+                  ? {
+                      ...f,
+                      sizeBytes: info.size_bytes,
+                      hasAudio:
+                        typeof info.has_audio === 'boolean' ? info.has_audio : f.hasAudio,
+                    }
+                  : f;
               })
             );
           })

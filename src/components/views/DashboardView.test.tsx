@@ -258,4 +258,58 @@ describe('DashboardView Component', () => {
     expect(screen.getByText('Échecs')).toBeDefined();
     expect(screen.getByText('1')).toBeDefined();
   });
+
+  it('doit indiquer si une vidéo est muette ou possède une piste audio', () => {
+    const videoMute: MediaItem = {
+      id: 'vid_mute',
+      name: 'video_sans_son.mp4',
+      path: '/path/video_sans_son.mp4',
+      kind: 'video',
+      format: 'MP4',
+      sizeBytes: 20 * 1024 * 1024,
+      progress: 0,
+      status: 'wait',
+      hasAudio: false,
+    };
+    const videoWithSound: MediaItem = {
+      id: 'vid_sound',
+      name: 'video_avec_son.mp4',
+      path: '/path/video_avec_son.mp4',
+      kind: 'video',
+      format: 'MP4',
+      sizeBytes: 25 * 1024 * 1024,
+      progress: 0,
+      status: 'wait',
+      hasAudio: true,
+    };
+
+    render(
+      <DashboardView
+        items={[videoMute, videoWithSound]}
+        activeMediaTab="videos"
+        onMediaTabChange={vi.fn()}
+        folders={[{ label: 'Dossier 1', value: '0' }]}
+        destValue="0"
+        onDestChange={vi.fn()}
+        onBrowseFolder={vi.fn()}
+        targetKo={1104}
+        onTargetChange={vi.fn()}
+        onAddBatch={vi.fn()}
+        onClearQueue={vi.fn()}
+        onRemoveItem={vi.fn()}
+        running={false}
+        hasRun={false}
+        cpu={10}
+        ram={2.0}
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onDownloadZip={vi.fn()}
+        crf={26}
+        exportMode="copy"
+      />
+    );
+
+    expect(screen.getByText('Source muette')).toBeDefined();
+    expect(screen.getByText('Audio stéréo')).toBeDefined();
+  });
 });

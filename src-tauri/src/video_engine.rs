@@ -246,6 +246,28 @@ pub fn parse_duration_from_stderr(text: &str) -> Option<f64> {
     }
 }
 
+/// Vérifie si une vidéo contient au moins un flux audio via ffprobe
+pub fn probe_video_has_audio(input: &Path) -> Option<bool> {
+    if !input.exists() {
+        return None;
+    }
+
+    let ffprobe = resolve_ffprobe_path();
+    let output = std::process::Command::new(&ffprobe)
+        .args([
+            "-v", "error",
+            "-select_streams", "a:0",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+        ])
+        .arg(input)
+        .output()
+        .ok()?;
+
+    let stdout_text = String::from_utf8_lossy(&output.stdout);
+    Some(stdout_text.trim() == "audio")
+}
+
 /// Encode un unique fichier vidéo avec FFmpeg et parsing temps réel
 pub async fn encode_video_job<F>(
     job: &VideoJob,
@@ -283,6 +305,8 @@ where
         .arg("-i")
         .arg(&job.input)
         .args([
+            "-map", "0:v:0?",
+            "-map", "0:a?",
             "-c:v", "libx264",
             "-preset", "medium",
             "-crf", &crf.to_string(),
@@ -290,6 +314,8 @@ where
             "-movflags", "+faststart",
             "-c:a", "aac",
             "-b:a", "128k",
+            "-ac", "2",
+            "-ar", "44100",
             "-f", "mp4",
             "-progress", "pipe:1",
             "-nostats",
@@ -681,13 +707,17 @@ mod tests {
         let input_path = temp_dir.join("input_test.mp4");
         let output_path = temp_dir.join("output_test.mp4");
 
-        // Générer une courte vidéo de test synthétique de 1 seconde avec FFmpeg
+        // Générer une courte vidéo de test synthétique de 1 seconde avec vidéo ET audio
         let ffmpeg_bin = resolve_ffmpeg_path();
         let gen_status = Command::new(&ffmpeg_bin)
             .args([
                 "-y",
                 "-f", "lavfi",
                 "-i", "testsrc=duration=1:size=160x120:rate=10",
+                "-f", "lavfi",
+                "-i", "sine=frequency=1000:duration=1",
+                "-c:v", "libx264",
+                "-c:a", "aac",
                 input_path.to_str().unwrap(),
             ])
             .output()
@@ -695,6 +725,8 @@ mod tests {
 
         if let Ok(gen_res) = gen_status {
             assert!(gen_res.status.success(), "Échec de la génération de la vidéo synthétique");
+            assert_eq!(probe_video_has_audio(&input_path), Some(true));
+
             let job = VideoJob {
                 id: "test_job".into(),
                 input: input_path.clone(),
@@ -712,6 +744,7 @@ mod tests {
             let report = res.unwrap();
             assert!(report.success);
             assert!(output_path.exists());
+            assert_eq!(probe_video_has_audio(&output_path), Some(true), "Le flux audio doit être conservé dans le fichier compressé !");
             assert!(report.output_size_bytes > 0);
             assert!(progress_count > 0);
 

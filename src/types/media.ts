@@ -18,6 +18,7 @@ export interface MediaItem {
   progress: number; // 0 à 100
   status: FileStatus;
   errorMessage?: string;
+  hasAudio?: boolean; // Présence d'un flux audio détecté (vidéos)
 }
 
 export interface QuotaLimits {
