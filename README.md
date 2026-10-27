@@ -108,14 +108,22 @@ L'application repose sur le modèle multi-processus sécurisé de **Tauri v2** :
 
 ---
 
-## 🖥 Aperçu de l'Interface (4 Onglets)
+## 🖥 Aperçu de l'Interface (Navigation Épurée)
 
-L'interface utilisateur implémente fidèlement les 4 vues du prototype interactif situé dans `reference/GO COMPRESSOR — Prototype interactif-html` :
+L'interface utilisateur est centrée sur l'efficacité opérationnelle avec une barre de navigation épurée à **2 onglets principaux** et des flux de travail séparés :
 
-1. **Tableau de bord :** Vue opérationnelle principale avec grande zone de glisser-déposer, sélection du répertoire cible, slider de calibration 800 Ko – 2 Mo, file de traitement en direct avec barres de progression et indicateurs d'état CPU/RAM.
-2. **Fichiers :** Visualisation détaillée du lot avec jauges de quota (Images $0/50$, Vidéos $0/20$), filtres dynamiques (*Tous*, *Images*, *Vidéos*), tableau récapitulatif (nom, format, taille avant/après, statut) et suppression unitaire.
-3. **Dossier d'export :** Choix du répertoire de sauvegarde, 3 cartes statistiques clés (fichiers traités, gain moyen constaté, total du poids économisé) et tableau d'audit de conformité par rapport à la cible.
-4. **Paramètres :** Réglages fins des moteurs Rust : curseurs $Q_{\min}$, $Q_{\max}$, nombre de threads `rayon`, banc interactif visualisant les étapes de la recherche dichotomique, curseur CRF vidéo, choix du comportement d'écriture et conservation des EXIF.
+1. **Tableau de bord (Vue d'action complète) :**
+   - **Deux sous-onglets médias dédiés :**
+     - *Photos & Images :* Importation réservée aux images (`JPG`, `PNG`, `WebP`) jusqu'à 50 photos (~15 Mo), calibration cible (800 Ko – 2 Mo) et file d'attente détaillée.
+     - *Vidéos :* Importation réservée aux vidéos (`MP4`, `MOV`, `MKV`, `AVI`) plafonnée à 20 vidéos maximum avec transcodage séquentiel anti-saturation.
+   - **Gestion de l'export intégrée :** Sélection immédiate du dossier de destination avec bouton *Parcourir…*.
+   - **Rapport de performance & Téléchargement :** Affichage des KPI (*Fichiers traités*, *Gain moyen*, *Poids économisé*) et bouton direct de **Téléchargement du lot (.ZIP)**.
+   - **Supervision temps réel :** Jauge de progression individuelle par fichier, boutons de pause/lancement et indicateurs télémétriques CPU/RAM.
+
+2. **Paramètres (Réglages avancés) :**
+   - Réglages fins des moteurs Rust : curseurs $Q_{\min}$, $Q_{\max}$, nombre de threads `rayon`, banc interactif visualisant les étapes de la recherche dichotomique.
+   - Curseur de qualité vidéo (CRF 23-28).
+   - Choix du comportement d'écriture non-destructive (copie, suffixe `_opt`, sous-dossier horodaté) et conservation des métadonnées EXIF.
 
 ---
 

@@ -146,30 +146,34 @@ gantt
 ### Phase 2 : Design System & Interface Utilisateur (Reproduction Fidèle du Prototype)
 *Objectif : Transposer les composants du prototype interactif HTML/CSS en composants React modulaires et accessibles.*
 
-- [ ] **2.1 Intégration des Design Tokens & Thème :**
+- [x] **2.1 Intégration des Design Tokens & Thème :**
   - Créer `src/styles/theme.css` en reprenant l'intégralité des variables CSS du prototype :
     - Couleurs surfaces : `--surface-100: #ffffff`, `--surface-200: #eef2f8`, `--tint-50: #d5eefe`, etc.
     - Accents & Marques : `--sky-500: #37a7e7`, `--azure-500: #2d9ff8`, `--cyan-400: #3cc9fe`, `--brand-text: #0b6fa8`.
     - Typographies : Font sans-serif système + Montserrat pour les titrages.
     - Rayons de courbure : `--radius-sm: 8px` jusqu'à `--radius-pill: 9999px`.
-- [ ] **2.2 Composants UI Atomiques Réutilisables (`src/components/ui/`) :**
+- [x] **2.2 Composants UI Atomiques Réutilisables (`src/components/common/`) :**
   - `Button.tsx` : Bouton principal avec gradient cyan/azur, variante secondaire blanche avec bordure, état désactivé, focus-ring accessible.
   - `Badge.tsx` : Badge d'information (`gc-badge`) avec fond azur clair.
-  - `Slider.tsx` : Curseur personnalisé avec piste dégradée dynamique (`gc-range`).
+  - `RangeSlider.tsx` : Curseur personnalisé avec piste dégradée dynamique (`gc-range`).
   - `ProgressBar.tsx` : Barre de progression horizontale (`gc-progress`) avec transition fluide et variante de succès verte.
   - `Dropzone.tsx` : Zone bleue drag-and-drop avec bordure intérieure en pointillés blancs (`gc-drop`).
   - `ModalAlert.tsx` : Boîte de dialogue bloquante (`role="alertdialog"`) pour les avertissements de dépassement de quota.
-- [ ] **2.3 Structure de Navigation par Onglets (`src/components/layout/`) :**
-  - `HeaderTabs.tsx` : Barre d'onglets supérieure à 4 vues :
-    1. *Tableau de bord* (vue d'action principale).
-    2. *Fichiers* (gestion fine du lot, compteurs et filtrage).
-    3. *Dossier d'export* (sélection répertoire, modes d'enregistrement, rapport détaillé).
-    4. *Paramètres* (réglages fins des algorithmes Rust).
-- [ ] **2.4 Vues Complètes (Pages) :**
-  - `DashboardTab.tsx` : Dropzone, sélecteur de dossier, slider cible 800 Ko – 2 Mo, file d'attente avec états d'éléments, jauge CPU/RAM, boutons d'action.
-  - `FilesTab.tsx` : Cartes de synthèse des quotas (Images 0/50, Vidéos 0/20), chips de filtre (*Tous*, *Images*, *Vidéos*), table des fichiers avec suppression unitaire.
-  - `ExportTab.tsx` : Répertoire de sortie, mode d'écriture en cours, 3 cartes KPI statistiques (fichiers traités, gain moyen, poids économisé), table de rapport d'export.
-  - `SettingsTab.tsx` : Sliders Qmin/Qmax/Threads, banc de test interactif avec simulation de dichotomie pas à pas, slider CRF FFmpeg, sélecteur de mode d'écriture (copie, suffixe `_opt`, sous-dossier horodaté) et case à cocher EXIF.
+  - `Icons.tsx` : Glyphes vectoriels SVG intégrés et optimisés.
+- [x] **2.3 Structure de Navigation Épurée (`src/components/layout/`) :**
+  - `HeaderTabs.tsx` : Navigation supérieure recentrée sur 2 onglets essentiels :
+    1. *Tableau de bord* (espace de traitement complet avec sous-onglets médias, sélection de destination et export/téléchargement ZIP direct).
+    2. *Paramètres* (réglages fins des moteurs Rust, codecs et modes d'écriture).
+- [x] **2.4 Vues Complètes & Sous-Onglets Médias :**
+  - `DashboardView.tsx` :
+    - Sous-onglets dédiés : *Photos & Images* (quota 50 max, JPG/PNG/WebP, calibration cible 800 Ko – 2 Mo) et *Vidéos* (quota 20 max, MP4/MOV/MKV, transcodage séquentiel anti-surcharge).
+    - Zones Dropzone distinctes et adaptées pour chaque type de média.
+    - Sélection du dossier de destination direct avec bouton *Parcourir…*.
+    - Rapport KPI post-compression (fichiers traités, gain moyen %, poids économisé).
+    - Bouton d'export et de téléchargement du lot compressé (.ZIP).
+    - Barre d'action inférieure avec télémétrie CPU % et RAM Go.
+  - `SettingsView.tsx` : Sliders Qmin/Qmax/Threads, banc de test interactif avec simulation de dichotomie pas à pas, slider CRF FFmpeg, sélecteur de mode d'écriture (copie, suffixe `_opt`, sous-dossier horodaté) et case à cocher EXIF.
+  - `App.tsx` : Orchestration globale avec gestion d'état complète.
 
 ---
 
