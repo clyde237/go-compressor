@@ -237,34 +237,43 @@ export function useMediaBatch(): UseMediaBatchResult {
   }, [files]);
 
   // Ouverture du dossier d'export ou du répertoire du média optimisé dans l'explorateur natif
-  const openExportFolder = useCallback(async (customPath?: string) => {
-    const defaultExport = exportDirectory || (files.find((f) => f.outputPath)?.outputPath) || '';
-    const target = customPath || defaultExport;
+  const openExportFolder = useCallback(
+    async (customPath?: unknown) => {
+      // Sécurisation stricte de l'argument : s'assurer qu'il s'agit d'une chaîne et non d'un SyntheticEvent React
+      const pathArg =
+        typeof customPath === 'string' && customPath.trim() !== ''
+          ? customPath.trim()
+          : undefined;
 
-    if (!target) {
-      setAlert({
-        title: 'Emplacement introuvable',
-        body: "Aucun dossier d'export ou fichier optimisé n'est disponible.",
-      });
-      return;
-    }
+      const firstDoneOutput = files.find((f) => f.status === 'done' && f.outputPath)?.outputPath;
+      const target = pathArg || exportDirectory || firstDoneOutput || '';
 
-    if (isTauriEnvironment()) {
-      try {
-        await invoke('open_directory_in_explorer', { path: target });
-      } catch (err) {
+      if (!target) {
         setAlert({
-          title: "Impossible d'ouvrir le dossier",
-          body: String(err),
+          title: 'Emplacement introuvable',
+          body: "Aucun dossier d'export ou fichier optimisé n'est disponible.",
+        });
+        return;
+      }
+
+      if (isTauriEnvironment()) {
+        try {
+          await invoke('open_directory_in_explorer', { path: target });
+        } catch (err) {
+          setAlert({
+            title: "Impossible d'ouvrir le dossier",
+            body: String(err),
+          });
+        }
+      } else {
+        setAlert({
+          title: 'Ouverture du dossier',
+          body: `Ouverture simulée du dossier : ${target}`,
         });
       }
-    } else {
-      setAlert({
-        title: 'Ouverture du dossier',
-        body: `Ouverture simulée du dossier : ${target}`,
-      });
-    }
-  }, [exportDirectory, files]);
+    },
+    [exportDirectory, files]
+  );
 
   // Enregistrement individuel d'un fichier optimisé
   const saveSingleFile = useCallback(async (item: MediaItem) => {

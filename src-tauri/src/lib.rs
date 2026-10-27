@@ -117,9 +117,17 @@ fn open_directory_in_explorer(path: String) -> Result<(), String> {
     let p = Path::new(&path);
     let target = if p.is_file() {
         p.parent().unwrap_or(p)
+    } else if p.exists() {
+        p
+    } else if let Some(parent) = p.parent() {
+        parent
     } else {
         p
     };
+
+    if !target.exists() {
+        return Err(format!("L'emplacement spécifié n'existe pas : {}", target.display()));
+    }
 
     #[cfg(target_os = "windows")]
     {

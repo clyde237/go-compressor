@@ -44,7 +44,7 @@ export interface DashboardViewProps {
   onStart: () => void;
   onPause: () => void;
   onDownloadZip: () => void;
-  onOpenExportFolder?: () => void;
+  onOpenExportFolder?: (path?: string) => void;
   onSaveSingleFile?: (item: MediaItem) => void;
   crf: number;
   exportMode: ExportMode;
@@ -435,7 +435,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </Button>
                   )}
                   <Button
-                    onClick={onOpenExportFolder || onBrowseFolder}
+                    onClick={() => {
+                      if (onOpenExportFolder) {
+                        onOpenExportFolder(doneItems[0]?.outputPath);
+                      } else {
+                        onBrowseFolder();
+                      }
+                    }}
                     style={{
                       display: 'inline-flex',
                       gap: '8px',
@@ -453,7 +459,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <>
                   <Button
                     variant="secondary"
-                    onClick={onOpenExportFolder || onBrowseFolder}
+                    onClick={() => {
+                      if (onOpenExportFolder) {
+                        onOpenExportFolder();
+                      } else {
+                        onBrowseFolder();
+                      }
+                    }}
                     style={{
                       display: 'inline-flex',
                       gap: '8px',
