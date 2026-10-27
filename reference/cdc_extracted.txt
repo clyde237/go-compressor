@@ -1,0 +1,414 @@
+S P É C I F I C AT I O N S F O N CT I O N N E L L E S & T E C H N I Q U E S
+
+CAHIER DES CHARGES — APPLICATION DESKTOP
+CROSS-PLATFORM
+Projet : OptiMedia Desktop (Images & Vidéos)
+
+Stack : Tauri v2 · React.js · Rust
+
+Cibles : Windows (.exe, .msi) · Linux (.deb) · macOS (.dmg)
+
+Version : v1.1 — Spécifications Médias
+
+Règles Métier & Quotas de Traitement Multimédia
+• Compression d'Images : Import d'images haute définition d'une taille moyenne de 15 Mo (jusqu'à 50
+fichiers/lot) pour une taille en sortie calibrée entre 800 Ko et 2 Mo (réduction de 85 % à 95 %).
+• Traitement Vidéo : Limitation stricte des lots à 20 fichiers vidéo maximum (et non 50) afin de garantir la
+stabilité mémoire et CPU lors du transcodage natif.
+
+01. Contexte et Objectifs du Projet
+Ce cahier des charges définit le périmètre fonctionnel, l'architecture logicielle et le pipeline
+d'industrialisation d'une application de bureau multiplateforme dédiée à l'optimisation et la compression
+par lots d'images lourds (~15 Mo
+
+→ 800 Ko à 2 Mo) et de vidéos (lots de 20 fichiers max). Basée sur
+
+Tauri, React.js et Rust, elle garantit des performances natives maximales et des installateurs légers pour
+Windows, Linux et macOS.
+
+02. Expression des Besoins — Backlog des User Stories
+Le tableau suivant décompose les besoins de traitement d'images et de vidéos en récits utilisateurs,
+critères d'acceptation et composants techniques :
+
+ID &
+
+RÉCIT UTILISATEUR (USER STORY)
+
+PRIO.
+
+CRITÈRES D'ACCEPTATION
+
+IMPLÉMENTATION
+
+(DOD)
+
+(REACT / RUST)
+
+US-01
+
+En tant qu'utilisateur,
+
+Support JPG/PNG/WebP ;
+
+Dropzone React +
+
+Haute
+
+Je veux importer des images d'une taille
+
+boucle d'ajustement qualité
+
+Crates Rust image /
+
+(P0)
+
+moyenne de 15 Mo (jusqu'à 50 fichiers),
+
+garantissant un poids final
+
+mozjpeg / webp
+
+Afin d'obtenir des images compressées pesant
+
+entre 800 Ko et 2 Mo sans
+
+parallélisés via
+
+entre 800 Ko et 2 Mo en sortie.
+
+dégradation visuelle
+
+rayon .
+
+notable.
+US-02
+
+En tant qu'utilisateur,
+
+Contrôle strict bloquant
+
+Validation React +
+
+Haute
+
+Je veux importer un lot limité à 20 fichiers
+
+l'ajout au-delà de 20 vidéos
+
+Sidecar Rust ffmpeg
+
+(P0)
+
+vidéo maximum (et non 50),
+
+avec message d'alerte UI ;
+
+asynchrone
+
+Afin de compresser mes vidéos sans saturer la
+
+file d'attente séquentielle et
+
+( tokio::process ) +
+
+RAM ni le processeur.
+
+barre de progression temps
+
+événements IPC.
+
+réel.
+US-03
+
+En tant qu'utilisateur,
+
+Sélection native du dossier
+
+Plugin @tauri-
+
+Moyenne
+
+Je veux choisir le répertoire d'export et
+
+de sortie ; rapport affichant
+
+(P1)
+
+visualiser le ratio de compression avant/après,
+
+la taille initiale (~15 Mo), la
+
+apps/plugindialog + écriture non-
+
+Afin de vérifier que les images respectent la
+
+taille finale (800 Ko – 2 Mo)
+
+destructive via
+
+cible 800 Ko – 2 Mo.
+
+et le gain en %.
+
+std::fs en Rust.
+
+Cahier des Charges — Application Tauri (React.js + Rust)
+
+Page 1 sur 4
+
+03. Architecture Technique Tauri (React.js
+
+↔ Rust)
+
+L'application adopte le modèle multi-processus sécurisé de Tauri. Contrairement à Electron qui embarque
+Chromium et Node.js, Tauri utilise la WebView native du système d'exploitation pour le rendu React.js et
+délègue le décodage/encodage d'images lourdes (~15 Mo) et le transcodage vidéo au binaire Rust
+compilé.
+
+FRONTEND (WebView Native)
+React.js 18+ & TypeScript
+
+invoke(batch)
+
+BACKEND CORE (Rust)
+
+CIBLES OS NATIVES
+
+#[tauri::command]
+
+800Ko–2Mo / Events
+
+Rayon (Images) · FFmpeg (Vidéos)
+Cible Image : 800 Ko à 2 Mo
+
+Windows (.exe / .msi)
+Linux Debian (.deb)
+macOS Apple (.dmg)
+
+Dropzone (50 Img / 20 Vidéos max)
+@tauri-apps/api/core
+
+Figure 1 — Flux d'exécution IPC entre la WebView React.js, le moteur de compression Rust et les systèmes cibles.
+
+04. Découpage Modulaire & Algorithmes de Compression
+Couche Présentation ( /src — React.js + TypeScript) : Zone de glisser-déposer validant les quotas en
+amont (maximum 50 images de ~15 Mo ou 20 vidéos par lot) et affichage en temps réel de la jauge de
+progression par fichier via les événements Tauri ( listen('compression-progress') ).
+Moteur de Compression d'Images ( /src-tauri/src/image_engine.rs ) : Traitement multi-threadé avec
+
+rayon . Pour ramener une image de 15 Mo dans la fourchette stricte de 800 Ko à 2 Mo, l'algorithme
+applique un redimensionnement adaptatif et une recherche dichotomique sur le facteur de qualité
+(Q=65..92).
+Moteur Vidéo Limité à 20 Fichiers ( /src-tauri/src/video_engine.rs ) : Vérification côté Rust du
+plafond MAX_VIDEOS = 20 , puis exécution asynchrone d'un binaire ffmpeg embarqué (sidecar Tauri)
+avec encodage CRF 23–28 pour éviter toute saturation thermique ou mémoire.
+Passage par Chemins Système : Les fichiers de 15 Mo ou vidéos ne transitent jamais en base64 dans
+le pont IPC JSON ; seuls leurs chemins absolus ( PathBuf ) sont transmis de React vers Rust.
+
+// Contrat IPC Rust — Vérification des quotas (20 vidéos max) & Cible Image (800 Ko 2 Mo) const MAX_VIDEOS: usize = 20; const TARGET_MIN_BYTES: usize = 800 * 1024; const
+TARGET_MAX_BYTES: usize = 2 * 1024 * 1024; #[tauri::command] async fn
+process_media_batch(images: Vec<String>, videos: Vec<String>) -> Result<BatchReport, String>
+{ if videos.len() > MAX_VIDEOS { return Err("Limite dépassée : 20 vidéos maximum par
+lot.".into()); } compress_all(images, videos, TARGET_MIN_BYTES,
+TARGET_MAX_BYTES).await.map_err(|e| e.to_string()) }
+
+Cahier des Charges — Application Tauri (React.js + Rust)
+
+Page 2 sur 4
+
+05. Stratégie de Compilation & Matrice des Cibles Multi-OS
+La compilation croisée complète d'interfaces système natives (WebView2, GTK, Cocoa) nécessitant les
+bibliothèques dynamiques propres à chaque OS, l'industrialisation repose sur une matrice de runners
+natifs GitHub Actions pilotée par l'action officielle tauri-apps/tauri-action . Chaque publication de tag
+génère automatiquement les quatre formats d'installateurs exigés.
+
+SYSTÈME CIBLE
+
+Windows 10/11
+
+EXTENSION
+
+.exe
+
+(Standard)
+
+Windows 10/11
+
+.msi
+
+(Entreprise GPO)
+
+OUTIL DE PACKAGING
+
+RUNNER GITHUB
+
+CHEMIN DE L'ARTEFACT
+
+ACTIONS
+
+GÉNÉRÉ
+
+NSIS (Nullsoft
+
+windows-latest
+
+Scriptable Install
+
+(x86_64-pc-windows-
+
+bundle/nsis/*_x64setup.exe
+
+System)
+
+msvc)
+
+WiX Toolset v3
+
+windows-latest
+
+(Windows Installer)
+
+(x86_64-pc-windows-
+
+bundle/msi/*_x64_frFR.msi
+
+msvc)
+Linux
+
+.deb
+
+(Debian /
+
+Tauri Debian Packager
+
+ubuntu-22.04
+
+(dpkg)
+
+(x86_64-unknown-
+
+Ubuntu)
+macOS
+(Apple Silicon /
+
+bundle/deb/*_amd64.d
+eb
+
+linux-gnu)
+
+.dmg
+
+Apple Disk Image
+
+macos-latest
+
+Bundler
+
+(aarch64 & x86_64)
+
+bundle/dmg/*_univers
+al.dmg
+
+Intel)
+
+06. Prérequis Système & Configuration du Bundler
+Environnement Windows ( .exe & .msi ) : Le runner windows-latest intègre nativement MSVC (Visual
+Studio C++ Build Tools), WiX Toolset et NSIS. L'installateur vérifie la présence de Microsoft Edge
+
+WebView2 Runtime et l'installe automatiquement en mode silencieux (bootstrapper) s'il est absent du
+poste client.
+Environnement Linux Debian/Ubuntu ( .deb ) : Le job CI installe les en-têtes système indispensables
+avant la compilation Rust : libwebkit2gtk-4.1-dev , build-essential , curl , wget , file , libssl-
+
+dev , libayatana-appindicator3-dev et librsvg2-dev . Le paquet .deb généré déclare
+automatiquement ces dépendances pour apt .
+Environnement macOS ( .dmg ) : Le runner macos-latest compile à la fois pour l'architecture Apple
+Silicon ( aarch64-apple-darwin ) et Intel ( x86_64-apple-darwin ) afin de produire une image disque
+
+.dmg prête à être glissée dans le dossier /Applications .
+Configuration déclarative dans src-tauri/tauri.conf.json
+Pour activer simultanément les 4 formats d'installateurs lors de l'exécution du pipeline, la clé bundle.targets
+du fichier tauri.conf.json doit être configurée sur : "targets": ["nsis", "msi", "deb", "dmg"] avec
+un identifiant unique "identifier": "com.organisation.projet" .
+
+Cahier des Charges — Application Tauri (React.js + Rust)
+
+Page 3 sur 4
+
+07. Pipeline CI/CD GitHub Actions ( .github/workflows/release.yml )
+Ce workflow automatise la compilation du frontend React.js, du binaire Rust et la publication des
+installateurs .exe , .msi , .deb et .dmg dans une GitHub Release à chaque création d'un tag de version
+(ex. git tag v1.0.0 && git push --tags ) :
+
+name: Build & Release Tauri Multi-OS (.exe, .msi, .deb, .dmg) on: push: tags: [ 'v*' ]
+workflow_dispatch: permissions: contents: write jobs: build-tauri: strategy: fail-fast:
+false matrix: include: - platform: windows-latest # Génère les installateurs .exe (NSIS) et
+.msi (WiX) args: '--bundles nsis,msi' - platform: ubuntu-22.04 # Génère le paquet
+Debian/Ubuntu .deb args: '--bundles deb' - platform: macos-latest # Génère l'image disque
+Apple .dmg args: '--bundles dmg' runs-on: ${{ matrix.platform }} steps: - uses:
+actions/checkout@v4 - name: Dépendances système Linux (WebKitGTK & AppIndicator) if:
+matrix.platform == 'ubuntu-22.04' run: | sudo apt-get update sudo apt-get install -y
+libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf - uses: actions/setupnode@v4 with: { node-version: 20, cache: 'npm' } - uses: dtolnay/rust-toolchain@stable uses: Swatinem/rust-cache@v2 with: { workspaces: './src-tauri -> target' } - run: npm ci uses: tauri-apps/tauri-action@v0 env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} with:
+tagName: v__VERSION__ releaseName: 'Release v__VERSION__' args: ${{ matrix.args }}
+
+08. Plan de Recette & Validation des Livrables
+PHASE DE CONTRÔLE
+
+VÉRIFICATIONS TECHNIQUES & FONCTIONNELLES
+
+CRITÈRE D'ACCEPTATION
+
+Tests Unitaires &
+
+Exécution de cargo test & cargo clippy côté
+
+0 erreur de lint ; 100 % des tests
+
+Qualité
+
+Rust ; vitest & eslint côté React.js.
+
+critiques passants.
+
+Recette Métier
+
+Test d'un lot d'images de 15 Mo en moyenne et
+
+100 % des images sorties entre
+
+(Images & Vidéos)
+
+tentative d'import de plus de 20 vidéos.
+
+800 Ko et 2 Mo ; rejet immédiat
+de la 21e vidéo.
+
+Validation Packaging
+
+Installation propre et lancement sur machines vierges
+
+4 binaires publiés sur GitHub
+
+Windows 11 ( .exe / .msi ), Ubuntu ( .deb ) et
+
+Releases et fonctionnels.
+
+macOS ( .dmg ).
+
+Validation Maîtrise d'Ouvrage (MOA) :
+
+Validation Maîtrise d'Œuvre (MOE) :
+
+Responsable : [Nom du Product Owner / Client]
+
+Lead Tech Tauri : [Nom du Développeur Rust/React]
+
+Date et signature : [JJ/MM/AAAA]
+
+Date et signature : [JJ/MM/AAAA]
+
+Cahier des Charges — Application Tauri (React.js + Rust)
+
+Page 4 sur 4
+
+

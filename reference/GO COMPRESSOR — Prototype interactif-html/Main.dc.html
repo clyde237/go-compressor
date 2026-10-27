@@ -1,0 +1,655 @@
+<!doctype html>
+<meta charset="utf-8"><style data-dc-design-system-vars>@layer{:root{--surface-100:#ffffff;--surface-200:#eef2f8;--tint-100:#e3f0fc;--tint-200:#b7e0fd;--tint-300:#8fccee;--tint-50:#d5eefe;--track:#e3e5f1;--border-subtle:#cbd9e1;--border-control:#7a8b99;--sky-500:#37a7e7;--sky-400:#6fd1f7;--sky-600:#258bc7;--azure-500:#2d9ff8;--cyan-400:#3cc9fe;--aqua-400:#4cc6d9;--aqua-300:#69e5e5;--navy-900:#0a243d;--on-brand:#0a243d;--ink:#161618;--ink-muted:#525b62;--ink-badge:#2b5d76;--brand-text:#0b6fa8;--focus-ring:#0b6fa8;--success-500:#379f66;--success-700:#367250;--white:#ffffff;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--space-8:32px;--radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:20px;--radius-pill:9999px;--font-sans:system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;--font-brand:"Montserrat", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;--text-title:700 22px/28px var(--font-sans);--text-heading:600 17px/24px var(--font-sans);--text-body:400 15px/22px var(--font-sans);--text-label:500 14px/20px var(--font-sans);--text-caption:400 12px/16px var(--font-sans);--text-button:700 15px/20px var(--font-sans);--text-wordmark:800 48px/46px var(--font-brand);}}</style>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>GO COMPRESSOR Desktop</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/go-compressor/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+:root{
+  --surface-100:#ffffff;--surface-200:#eef2f8;--tint-50:#d5eefe;--tint-100:#e3f0fc;--tint-200:#b7e0fd;--tint-300:#8fccee;
+  --track:#e3e5f1;--border-subtle:#cbd9e1;--border-control:#7a8b99;
+  --sky-500:#37a7e7;--sky-400:#6fd1f7;--sky-600:#258bc7;--azure-500:#2d9ff8;--cyan-400:#3cc9fe;
+  --navy-900:#0a243d;--on-brand:#0a243d;--ink:#161618;--ink-muted:#525b62;--ink-badge:#2b5d76;
+  --brand-text:#0b6fa8;--focus-ring:#0b6fa8;--success-500:#379f66;--success-700:#367250;--white:#ffffff;
+  --font-sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--space-8:32px;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:20px;--radius-pill:9999px;
+}
+body{margin:0;background:#F8FAFC;font-family:var(--font-sans);color:var(--ink)}
+button{font-family:var(--font-sans)}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.gc-tabs{overflow-x:auto;border-bottom:1px solid var(--border-subtle)}
+.gc-tabs .gc-tab{flex:1 1 0;justify-content:center;white-space:nowrap;min-width:150px;min-height:52px}
+.gc-drop{transition:filter .15s}
+.gc-drop:hover{filter:brightness(1.04)}
+.gc-drop:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+.gc-split{display:flex;flex-wrap:wrap;gap:var(--space-6)}
+.gc-split>.gc-left{flex:1 1 320px;min-width:0}
+.gc-split>.gc-right{flex:1 1 320px;min-width:0;border-left:1px solid var(--border-subtle);padding-left:var(--space-6)}
+@media (max-width:720px){.gc-split>.gc-right{border-left:0;padding-left:0}}
+.gc-range{position:absolute;left:0;top:0;width:100%;height:20px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.gc-range::-webkit-slider-runnable-track{height:20px;background:transparent}
+.gc-range::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--sky-500);border:2px solid var(--brand-text)}
+.gc-range::-moz-range-track{height:20px;background:transparent}
+.gc-range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--sky-500);border:2px solid var(--brand-text)}
+.gc-range:focus-visible{outline:3px solid var(--focus-ring);outline-offset:4px;border-radius:9999px}
+.gc-chip{font:500 14px/20px var(--font-sans);padding:12px 16px;border-radius:9999px;border:1px solid var(--border-control);background:var(--surface-100);color:var(--ink);cursor:pointer}
+.gc-chip[aria-pressed="true"]{background:var(--tint-200);border-color:var(--brand-text);font-weight:600}
+.gc-chip:focus-visible,.gc-iconbtn:focus-visible,.gc-opt input:focus-visible,.gc-check-row input:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+.gc-iconbtn{width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:12px;background:transparent;color:var(--ink-muted);cursor:pointer;flex:none}
+.gc-iconbtn:hover{background:var(--tint-100);color:var(--ink)}
+.gc-btn--small{padding:10px 16px;font-size:14px;min-height:44px}
+.gc-btn--secondary:hover{background:var(--tint-100)}
+.gc-opt{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border:1px solid var(--border-subtle);border-radius:12px;cursor:pointer;background:var(--surface-100)}
+.gc-opt--on{border-color:var(--brand-text);background:var(--tint-100)}
+.gc-opt input,.gc-check-row input{width:20px;height:20px;margin:2px 0 0;accent-color:#0b6fa8;flex:none}
+.gc-check-row{display:flex;gap:12px;align-items:flex-start;cursor:pointer;min-height:44px}
+.gc-row{display:grid;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border-subtle);font:400 15px/22px var(--font-sans)}
+.gc-row--head{border-top:0;font:500 14px/20px var(--font-sans);color:var(--ink-muted);padding-top:0}
+.gc-files-grid{grid-template-columns:minmax(220px,2.4fr) 80px 110px 110px 150px 44px}
+.gc-exp-grid{grid-template-columns:minmax(200px,2fr) 120px 120px 100px minmax(190px,1.5fr)}
+.gc-scroll{overflow-x:auto}
+.gc-h1{margin:0;font:700 22px/28px var(--font-sans)}
+.gc-h2{margin:0;font:600 17px/24px var(--font-sans)}
+.gc-muted{color:var(--ink-muted)}
+.gc-caption{font:400 12px/16px var(--font-sans);color:var(--ink-muted)}
+.gc-stat{flex:1 1 200px;min-width:0}
+.gc-stat-num{font:700 22px/28px var(--font-sans);color:var(--ink)}
+.gc-overlay{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(10,36,61,.5);display:grid;place-items:center;padding:16px;z-index:50}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#F8FAFC;font-family:var(--font-sans);color:var(--ink)">
+
+  <!-- Barre d'onglets -->
+  <div class="gc-tabs" role="tablist" aria-label="Navigation principale">
+    <button type="button" class="gc-tab" role="tab" aria-selected="{{tabDash}}" onClick="{{goDash}}">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+      <span>Tableau de bord</span>
+    </button>
+    <button type="button" class="gc-tab" role="tab" aria-selected="{{tabFiles}}" onClick="{{goFiles}}">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+      <span>Fichiers</span>
+    </button>
+    <button type="button" class="gc-tab" role="tab" aria-selected="{{tabExport}}" onClick="{{goExport}}">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>
+      <span>Dossier d'export</span>
+    </button>
+    <button type="button" class="gc-tab" role="tab" aria-selected="{{tabSettings}}" onClick="{{goSettings}}">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <span>Paramètres</span>
+    </button>
+  </div>
+
+  <main style="flex:1 1 auto;width:100%;max-width:1040px;margin:0 auto;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:16px">
+
+    <!-- ============ TABLEAU DE BORD ============ -->
+    <sc-if value="{{tabDash}}" hint-placeholder-val="{{true}}">
+      <div role="tabpanel" style="display:flex;flex-direction:column;gap:16px">
+
+        <button type="button" class="gc-drop" onClick="{{addBatch}}" onDragOver="{{allowDrop}}" onDrop="{{dropFiles}}" aria-label="Zone de glisser-déposer : cliquez pour ajouter des fichiers" style="width:100%;border:0;display:block;cursor:pointer;padding:48px 24px">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:56px;height:56px;stroke:#0a243d"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span class="gc-drop-title" style="display:block">Glissez-déposez vos fichiers ici</span>
+          <span class="gc-drop-hint" style="display:block">Images (max 50, ~15 Mo) • Vidéos (max 20)</span>
+        </button>
+
+        <div class="gc-card gc-split">
+          <div class="gc-left">
+            <label class="gc-label" for="dest-dash" style="font-size:17px;line-height:24px;font-weight:600;margin-bottom:12px">Dossier de destination</label>
+            <select id="dest-dash" class="gc-field" value="{{destValue}}" onChange="{{setDest}}" style="min-height:44px">
+              <sc-for list="{{folders}}" as="f" hint-placeholder-count="3">
+                <option value="{{f.value}}">{{f.label}}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div class="gc-right">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+              <label class="gc-label" for="target" style="font-size:17px;line-height:24px;font-weight:600;margin:0">Cible : 800 Ko - 2 Mo</label>
+              <span class="gc-badge">Max 20 vidéos</span>
+            </div>
+            <div style="position:relative;height:20px;margin-top:20px">
+              <div style="position:absolute;left:0;right:0;top:6px;height:8px;border-radius:9999px;background:var(--track)"></div>
+              <div style="position:absolute;left:0;top:6px;height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--azure-500),var(--cyan-400));width:{{targetFill}}"></div>
+              <input id="target" class="gc-range" type="range" min="800" max="2048" step="16" value="{{targetKo}}" onChange="{{setTarget}}">
+            </div>
+            <div class="gc-caption" style="margin-top:10px">Taille visée par image : {{targetLabel}}</div>
+          </div>
+        </div>
+
+        <div class="gc-card" style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+            <h2 class="gc-h2">File d'attente de traitement</h2>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+              <span class="gc-caption">Images {{imgCount}}/50 • Vidéos {{vidCount}}/20</span>
+              <button type="button" class="gc-btn gc-btn--secondary gc-btn--small" onClick="{{clearQueue}}">Vider la file</button>
+            </div>
+          </div>
+          <sc-if value="{{queueEmpty}}" hint-placeholder-val="{{false}}">
+            <p class="gc-muted" style="margin:8px 0;font:400 15px/22px var(--font-sans)">La file est vide. Cliquez sur la zone bleue pour ajouter des fichiers.</p>
+          </sc-if>
+          <div class="gc-queue">
+            <sc-for list="{{items}}" as="item" hint-placeholder-count="3">
+              <div>
+                <div class="gc-item-row">
+                  <sc-if value="{{item.isImage}}" hint-placeholder-val="{{true}}">
+                    <svg class="gc-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+                  </sc-if>
+                  <sc-if value="{{item.isVideo}}" hint-placeholder-val="{{false}}">
+                    <svg class="gc-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="m22 8-6 4 6 4V8Z"></path></svg>
+                  </sc-if>
+                  <sc-if value="{{item.isPlay}}" hint-placeholder-val="{{false}}">
+                    <svg class="gc-glyph gc-glyph--play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                  </sc-if>
+                  <span style="min-width:0;overflow-wrap:anywhere"><span>{{item.lead}}</span><span class="{{item.tailClass}}">{{item.tail}}</span></span>
+                  <sc-if value="{{item.done}}" hint-placeholder-val="{{false}}">
+                    <span class="gc-check" style="margin-left:auto"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+                    <button type="button" class="gc-iconbtn" aria-label="{{item.removeLabel}}" onClick="{{item.remove}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+                  </sc-if>
+                  <sc-if value="{{item.notDone}}" hint-placeholder-val="{{true}}">
+                    <button type="button" class="gc-iconbtn" aria-label="{{item.removeLabel}}" onClick="{{item.remove}}" style="margin-left:auto"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+                  </sc-if>
+                </div>
+                <div class="gc-progress {{item.barClass}}" role="progressbar" aria-label="{{item.barLabel}}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{item.pRound}}"><span style="width: {{item.w}}"></span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:4px 0">
+          <span class="gc-caption" style="font-size:14px;line-height:20px" aria-live="off">{{statsText}}</span>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <sc-if value="{{running}}" hint-placeholder-val="{{false}}">
+              <button type="button" class="gc-btn gc-btn--secondary" onClick="{{pause}}">Mettre en pause</button>
+            </sc-if>
+            <button type="button" class="gc-btn" disabled="{{startDisabled}}" onClick="{{start}}" style="min-width:280px">{{startLabel}}</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ FICHIERS ============ -->
+    <sc-if value="{{tabFiles}}" hint-placeholder-val="{{false}}">
+      <div role="tabpanel" style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between">
+          <div style="flex:1 1 320px;min-width:0">
+            <h1 class="gc-h1">Fichiers du lot</h1>
+            <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Gérez le lot avant ou après compression. Quotas par lot : 50 images, 20 vidéos.</p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <button type="button" class="gc-btn gc-btn--secondary gc-btn--small" onClick="{{addBatch}}">Ajouter des fichiers</button>
+            <button type="button" class="gc-btn gc-btn--secondary gc-btn--small" onClick="{{simulateOverflow}}">Simuler dépassement quota (&gt; 20 vidéos)</button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          <div class="gc-card gc-stat">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+              <span class="gc-label" style="margin:0">Images · JPG / PNG / WebP</span>
+              <span class="gc-label" style="margin:0">{{imgCount}} / 50</span>
+            </div>
+            <div class="gc-progress" role="progressbar" aria-label="Quota images" aria-valuemin="0" aria-valuemax="50" aria-valuenow="{{imgCount}}" style="margin-top:10px"><span style="width: {{imgQuotaW}}"></span></div>
+            <div class="gc-caption" style="margin-top:8px">Cible de sortie : 800 Ko – 2 Mo par image</div>
+          </div>
+          <div class="gc-card gc-stat">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+              <span class="gc-label" style="margin:0">Vidéos · MP4</span>
+              <span class="gc-label" style="margin:0">{{vidCount}} / 20</span>
+            </div>
+            <div class="gc-progress" role="progressbar" aria-label="Quota vidéos" aria-valuemin="0" aria-valuemax="20" aria-valuenow="{{vidCount}}" style="margin-top:10px"><span style="width: {{vidQuotaW}}"></span></div>
+            <div class="gc-caption" style="margin-top:8px">Limite stricte pour préserver la RAM et le CPU</div>
+          </div>
+        </div>
+
+        <div role="group" aria-label="Filtrer par type" style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+            <button type="button" class="gc-chip" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}">{{c.label}}</button>
+          </sc-for>
+        </div>
+
+        <div class="gc-card">
+          <div class="gc-scroll">
+            <div role="table" aria-label="Fichiers du lot" style="min-width:760px">
+              <div role="row" class="gc-row gc-row--head gc-files-grid">
+                <span role="columnheader">Nom</span><span role="columnheader">Format</span><span role="columnheader">Initiale</span><span role="columnheader">Finale</span><span role="columnheader">Statut</span><span role="columnheader"></span>
+              </div>
+              <sc-for list="{{visibleItems}}" as="it" hint-placeholder-count="3">
+                <div role="row" class="gc-row gc-files-grid">
+                  <span role="cell" style="display:flex;gap:12px;align-items:center;min-width:0">
+                    <sc-if value="{{it.isVideoKind}}" hint-placeholder-val="{{false}}">
+                      <svg class="gc-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="m22 8-6 4 6 4V8Z"></path></svg>
+                    </sc-if>
+                    <sc-if value="{{it.isImageKind}}" hint-placeholder-val="{{true}}">
+                      <svg class="gc-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+                    </sc-if>
+                    <span style="overflow-wrap:anywhere">{{it.name}}</span>
+                  </span>
+                  <span role="cell">{{it.format}}</span>
+                  <span role="cell">{{it.before}}</span>
+                  <span role="cell">{{it.after}}</span>
+                  <span role="cell" style="display:flex;gap:8px;align-items:center">
+                    <sc-if value="{{it.done}}" hint-placeholder-val="{{false}}">
+                      <span class="gc-check" style="margin:0;width:20px;height:20px"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+                    </sc-if>
+                    <span class="{{it.statusClass}}" style="margin:0">{{it.statusText}}</span>
+                  </span>
+                  <span role="cell"><button type="button" class="gc-iconbtn" aria-label="{{it.removeLabel}}" onClick="{{it.remove}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{visibleEmpty}}" hint-placeholder-val="{{false}}">
+            <p class="gc-muted" style="margin:12px 0 4px;font:400 15px/22px var(--font-sans)">Aucun fichier pour ce filtre.</p>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ DOSSIER D'EXPORT ============ -->
+    <sc-if value="{{tabExport}}" hint-placeholder-val="{{false}}">
+      <div role="tabpanel" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <h1 class="gc-h1">Dossier d'export</h1>
+          <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Choisissez le répertoire de sortie et vérifiez le rapport avant/après. Cible : 800 Ko – 2 Mo par image, soit un gain de 85 % à 95 %.</p>
+        </div>
+
+        <div class="gc-card" style="display:flex;flex-direction:column;gap:12px">
+          <label class="gc-label" for="dest-exp" style="font-size:17px;line-height:24px;font-weight:600;margin:0">Répertoire de sortie</label>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:stretch">
+            <div style="flex:1 1 320px;min-width:0"><select id="dest-exp" class="gc-field" value="{{destValue}}" onChange="{{setDest}}" style="min-height:44px">
+              <sc-for list="{{folders}}" as="f" hint-placeholder-count="3">
+                <option value="{{f.value}}">{{f.label}}</option>
+              </sc-for>
+            </select></div>
+            <button type="button" class="gc-btn gc-btn--secondary gc-btn--small" onClick="{{nextDest}}">Parcourir…</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <span class="gc-badge">{{modeBadge}}</span>
+            <span class="gc-caption">Les fichiers originaux ne sont jamais modifiés. Le mode d'écriture se règle dans Paramètres.</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          <div class="gc-card gc-stat"><div class="gc-caption">Fichiers traités</div><div class="gc-stat-num">{{statCount}}</div></div>
+          <div class="gc-card gc-stat"><div class="gc-caption">Gain moyen</div><div class="gc-stat-num">{{statGain}}</div></div>
+          <div class="gc-card gc-stat"><div class="gc-caption">Poids économisé</div><div class="gc-stat-num">{{statSaved}}</div></div>
+        </div>
+
+        <div class="gc-card">
+          <h2 class="gc-h2" style="margin-bottom:12px">Rapport de compression</h2>
+          <sc-if value="{{reportEmpty}}" hint-placeholder-val="{{false}}">
+            <p class="gc-muted" style="margin:8px 0;font:400 15px/22px var(--font-sans)">Aucun fichier traité pour l'instant. Lancez la compression depuis le tableau de bord.</p>
+          </sc-if>
+          <sc-if value="{{reportHasRows}}" hint-placeholder-val="{{true}}">
+            <div class="gc-scroll">
+              <div role="table" aria-label="Rapport de compression" style="min-width:720px">
+                <div role="row" class="gc-row gc-row--head gc-exp-grid">
+                  <span role="columnheader">Fichier</span><span role="columnheader">Taille initiale</span><span role="columnheader">Taille finale</span><span role="columnheader">Gain</span><span role="columnheader">Cible</span>
+                </div>
+                <sc-for list="{{reportRows}}" as="r" hint-placeholder-count="1">
+                  <div role="row" class="gc-row gc-exp-grid">
+                    <span role="cell" style="overflow-wrap:anywhere">{{r.name}}</span>
+                    <span role="cell">{{r.before}}</span>
+                    <span role="cell">{{r.after}}</span>
+                    <span role="cell" class="gc-status--done" style="font-weight:600">{{r.gain}}</span>
+                    <span role="cell" style="display:flex;gap:8px;align-items:center">
+                      <sc-if value="{{r.ok}}" hint-placeholder-val="{{true}}">
+                        <span class="gc-check" style="margin:0;width:20px;height:20px"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+                      </sc-if>
+                      <span>{{r.target}}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ PARAMÈTRES ============ -->
+    <sc-if value="{{tabSettings}}" hint-placeholder-val="{{false}}">
+      <div role="tabpanel" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <h1 class="gc-h1">Paramètres du moteur</h1>
+          <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Réglages du backend Rust : images (crate rayon) et vidéos (sidecar FFmpeg).</p>
+        </div>
+
+        <div class="gc-card" style="display:flex;flex-direction:column;gap:20px">
+          <div>
+            <h2 class="gc-h2">Moteur d'images — recherche dichotomique</h2>
+            <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Le facteur de qualité Q est ajusté par dichotomie entre Qmin et Qmax jusqu'à obtenir un fichier dans la cible.</p>
+          </div>
+          <sc-for list="{{imageSliders}}" as="s" hint-placeholder-count="3">
+            <div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+                <label class="gc-label" for="{{s.id}}" style="margin:0">{{s.label}}</label>
+                <span class="gc-badge">{{s.display}}</span>
+              </div>
+              <div style="position:relative;height:20px;margin-top:14px">
+                <div style="position:absolute;left:0;right:0;top:6px;height:8px;border-radius:9999px;background:var(--track)"></div>
+                <div style="position:absolute;left:0;top:6px;height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--azure-500),var(--cyan-400));width:{{s.fill}}"></div>
+                <input id="{{s.id}}" class="gc-range" type="range" min="{{s.min}}" max="{{s.max}}" step="1" value="{{s.value}}" onChange="{{s.onChange}}">
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="gc-caption">{{s.minLabel}}</span><span class="gc-caption">{{s.maxLabel}}</span></div>
+              <div class="gc-caption" style="margin-top:2px">{{s.help}}</div>
+            </div>
+          </sc-for>
+
+          <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:12px;padding:16px">
+            <div style="font:600 15px/22px var(--font-sans)">Simulation pour une image de ~15 Mo, cible {{targetLabel}}</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+              <sc-for list="{{bisectSteps}}" as="b" hint-placeholder-count="3">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;font:400 14px/20px var(--font-sans)"><span style="font-weight:600;min-width:72px">Étape {{b.n}}</span><span>Q = {{b.q}} → {{b.size}}</span><span class="gc-muted">{{b.verdict}}</span></div>
+              </sc-for>
+            </div>
+            <div style="margin-top:12px;font:600 15px/22px var(--font-sans);color:var(--success-700)">Q retenu : {{bisectChosen}}</div>
+          </div>
+        </div>
+
+        <div class="gc-card" style="display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;justify-content:space-between">
+            <div style="flex:1 1 280px;min-width:0">
+              <h2 class="gc-h2">Moteur vidéo — FFmpeg</h2>
+              <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Encodage H.264 asynchrone, une vidéo à la fois, pour éviter toute saturation mémoire ou thermique.</p>
+            </div>
+            <span class="gc-badge">Max 20 vidéos par lot</span>
+          </div>
+          <sc-for list="{{videoSliders}}" as="s" hint-placeholder-count="1">
+            <div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+                <label class="gc-label" for="{{s.id}}" style="margin:0">{{s.label}}</label>
+                <span class="gc-badge">{{s.display}}</span>
+              </div>
+              <div style="position:relative;height:20px;margin-top:14px">
+                <div style="position:absolute;left:0;right:0;top:6px;height:8px;border-radius:9999px;background:var(--track)"></div>
+                <div style="position:absolute;left:0;top:6px;height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--azure-500),var(--cyan-400));width:{{s.fill}}"></div>
+                <input id="{{s.id}}" class="gc-range" type="range" min="{{s.min}}" max="{{s.max}}" step="1" value="{{s.value}}" onChange="{{s.onChange}}">
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="gc-caption">{{s.minLabel}}</span><span class="gc-caption">{{s.maxLabel}}</span></div>
+              <div class="gc-caption" style="margin-top:2px">{{s.help}}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div class="gc-card" style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <h2 class="gc-h2">Écriture non-destructive</h2>
+            <p class="gc-muted" style="margin:4px 0 0;font:400 15px/22px var(--font-sans)">Où écrire les fichiers compressés. Les originaux restent toujours intacts.</p>
+          </div>
+          <div role="radiogroup" aria-label="Comportement d'écriture" style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+              <label class="{{m.cls}}">
+                <input type="radio" name="write-mode" checked="{{m.checked}}" onChange="{{m.pick}}">
+                <span><span style="display:block;font:500 15px/22px var(--font-sans)">{{m.title}}</span><span class="gc-caption" style="display:block">{{m.desc}}</span></span>
+              </label>
+            </sc-for>
+          </div>
+          <label class="gc-check-row">
+            <input type="checkbox" checked="{{exif}}" onChange="{{toggleExif}}">
+            <span><span style="display:block;font:500 15px/22px var(--font-sans)">Conserver les métadonnées (EXIF)</span><span class="gc-caption" style="display:block">Date, appareil et orientation des images sont reportés dans le fichier de sortie.</span></span>
+          </label>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="button" class="gc-btn gc-btn--secondary" onClick="{{resetSettings}}">Rétablir les valeurs par défaut</button>
+        </div>
+      </div>
+    </sc-if>
+  </main>
+
+  <!-- Alerte bloquante -->
+  <sc-if value="{{hasAlert}}" hint-placeholder-val="{{false}}">
+    <div class="gc-overlay">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-body" style="background:var(--surface-100);border-radius:16px;max-width:460px;width:100%;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--border-subtle)">
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="width:44px;height:44px;border-radius:50%;background:var(--tint-50);display:grid;place-items:center;flex:none;color:var(--brand-text)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:24px;height:24px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+          <h2 id="alert-title" class="gc-h2" style="font-size:19px">{{alertTitle}}</h2>
+        </div>
+        <p id="alert-body" style="margin:0;font:600 15px/22px var(--font-sans)">{{alertBody}}</p>
+        <p class="gc-muted" style="margin:0;font:400 15px/22px var(--font-sans)">{{alertDetail}}</p>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="gc-btn" onClick="{{closeAlert}}">Compris</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":920}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'dash', filter: 'all', dest: 0,
+      targetKo: 1104, qMin: 65, qMax: 92, threads: 4, crf: 26, mode: 'copy', exif: true,
+      running: false, hasRun: false, cpu: 45, ram: 2.4, nextId: 4, alert: null,
+      files: [
+        { id: 1, name: 'photo_01.jpg', kind: 'image', mo: 15.2, status: 'done', p: 100, finalMo: 1.1 },
+        { id: 2, name: 'video_02.mp4', kind: 'video', mo: 45.1, status: 'running', p: 68, finalMo: 0 },
+        { id: 3, name: 'photo_03.png', kind: 'image', mo: 14.8, status: 'wait', p: 0, finalMo: 0 }
+      ]
+    };
+  }
+
+  componentDidMount() { this.timer = setInterval(() => this.tick(), 110); }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  fmt(mo) { return mo < 1 ? Math.round(mo * 1024) + ' Ko' : mo.toFixed(1) + ' Mo'; }
+  rnd(a, b) { return a + Math.random() * (b - a); }
+
+  computeFinal(f) {
+    const s = this.state;
+    if (f.kind === 'image') {
+      const ko = Math.max(800, Math.min(2048, s.targetKo * this.rnd(0.92, 1.08)));
+      return Math.min(ko / 1024, f.mo * 0.15);
+    }
+    const factor = 0.5 - (s.crf - 23) * 0.05;
+    return f.mo * factor * this.rnd(0.9, 1.1);
+  }
+
+  tick() {
+    const s = this.state;
+    if (!s.running) return;
+    const files = s.files.map(f => ({ ...f }));
+    let cur = files.find(f => f.status === 'running');
+    if (!cur) {
+      cur = files.find(f => f.status === 'wait');
+      if (!cur) { this.setState({ running: false, cpu: 8, ram: 2.4 }); return; }
+      cur.status = 'running'; cur.p = 0;
+    }
+    cur.p = Math.min(100, cur.p + (cur.kind === 'video' ? this.rnd(1.6, 4) : this.rnd(5, 12)));
+    if (cur.p >= 100) { cur.status = 'done'; cur.p = 100; cur.finalMo = this.computeFinal(cur); }
+    const more = files.some(f => f.status !== 'done');
+    const isVid = cur.kind === 'video';
+    this.setState({
+      files, running: more,
+      cpu: more ? Math.round(isVid ? this.rnd(70, 95) : this.rnd(55, 85)) : 8,
+      ram: more ? Math.round((isVid ? this.rnd(3.2, 4.6) : this.rnd(2.6, 3.4)) * 10) / 10 : 2.4
+    });
+  }
+
+  openVideoAlert(n) {
+    this.setState({ alert: {
+      title: 'Quota vidéo dépassé',
+      body: 'Limite dépassée : 20 vidéos maximum par lot.',
+      detail: 'Vous avez tenté d\'importer ' + n + ' vidéos. Pour préserver la RAM et le processeur pendant le transcodage, retirez des vidéos de la file avant d\'en ajouter de nouvelles.'
+    } });
+  }
+
+  addBatch() {
+    const s = this.state;
+    const imgs = s.files.filter(f => f.kind === 'image').length;
+    const vids = s.files.filter(f => f.kind === 'video').length;
+    if (vids + 1 > 20) { this.openVideoAlert(vids + 1); return; }
+    if (imgs + 2 > 50) {
+      this.setState({ alert: { title: 'Quota images dépassé', body: 'Limite dépassée : 50 images maximum par lot.', detail: 'Retirez des images de la file avant d\'en ajouter de nouvelles.' } });
+      return;
+    }
+    const exts = ['jpg', 'png', 'webp'];
+    const n = s.nextId;
+    const add = [];
+    for (let i = 0; i < 2; i++) {
+      add.push({ id: n + i, name: 'IMG_' + (2040 + n + i) + '.' + exts[(n + i) % 3], kind: 'image', mo: Math.round(this.rnd(12, 18) * 10) / 10, status: 'wait', p: 0, finalMo: 0 });
+    }
+    add.push({ id: n + 2, name: 'clip_' + (n + 2) + '.mp4', kind: 'video', mo: Math.round(this.rnd(30, 150) * 10) / 10, status: 'wait', p: 0, finalMo: 0 });
+    this.setState({ files: s.files.concat(add), nextId: n + 3 });
+  }
+
+  slider(id, label, min, max, value, display, help, onChange) {
+    return {
+      id, label, min, max, value, display, help, onChange,
+      minLabel: String(min), maxLabel: String(max),
+      fill: 'calc(10px + (100% - 20px) * ' + ((value - min) / (max - min)) + ')'
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const folders = ['ex: /Utilisateurs/Media/Export', 'ex: /Utilisateurs/Documents/Compressés', 'ex: /Utilisateurs/Bureau/Optimisés']
+      .map((label, i) => ({ label, value: String(i) }));
+
+    const imgCount = s.files.filter(f => f.kind === 'image').length;
+    const vidCount = s.files.filter(f => f.kind === 'video').length;
+    const pending = s.files.filter(f => f.status !== 'done').length;
+
+    const items = s.files.map(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const format = { jpg: 'JPG', png: 'PNG', webp: 'WebP', mp4: 'MP4' }[ext] || ext.toUpperCase();
+      const done = f.status === 'done', run = f.status === 'running';
+      const gain = done ? Math.floor((1 - f.finalMo / f.mo) * 100) : 0;
+      let lead = f.name + ' - ' + this.fmt(f.mo), tail, tailClass, statusText, statusClass;
+      if (done) { lead += ' → ' + this.fmt(f.finalMo); tail = '(-' + gain + '%) [Terminé]'; tailClass = 'gc-status gc-status--done'; statusText = 'Terminé'; statusClass = 'gc-status--done'; }
+      else if (run) { tail = '(Traitement en cours... ' + Math.round(f.p) + '%)'; tailClass = 'gc-status'; statusText = 'En cours ' + Math.round(f.p) + '%'; statusClass = ''; }
+      else { tail = '(En attente)'; tailClass = 'gc-status gc-status--wait'; statusText = 'En attente'; statusClass = 'gc-status--wait'; }
+      return {
+        id: f.id, kind: f.kind, name: f.name, format, done, mo: f.mo, finalMo: f.finalMo, gain,
+        isImage: f.kind === 'image' && !run, isVideo: f.kind === 'video' && !run, isPlay: run,
+        isImageKind: f.kind === 'image', isVideoKind: f.kind === 'video',
+        notDone: !done, lead, tail, tailClass, statusText, statusClass,
+        barClass: done ? 'gc-progress--done' : '', w: Math.round(f.p) + '%', pRound: Math.round(f.p),
+        barLabel: 'Progression de ' + f.name,
+        before: this.fmt(f.mo), after: done ? this.fmt(f.finalMo) : '—',
+        removeLabel: 'Retirer ' + f.name,
+        remove: () => this.setState({ files: this.state.files.filter(x => x.id !== f.id) })
+      };
+    });
+
+    const visibleItems = items.filter(it => s.filter === 'all' || it.kind === s.filter);
+    const chips = [
+      { key: 'all', label: 'Tous (' + items.length + ')' },
+      { key: 'image', label: 'Images JPG/PNG/WebP (' + imgCount + ')' },
+      { key: 'video', label: 'Vidéos MP4 (' + vidCount + ')' }
+    ].map(c => ({ label: c.label, pressed: s.filter === c.key, pick: () => this.setState({ filter: c.key }) }));
+
+    // Rapport d'export
+    const doneItems = items.filter(it => it.done);
+    const sumBefore = doneItems.reduce((a, b) => a + b.mo, 0);
+    const sumAfter = doneItems.reduce((a, b) => a + b.finalMo, 0);
+    const reportRows = doneItems.map(it => {
+      const ko = it.finalMo * 1024;
+      const ok = it.kind === 'image' && ko >= 780 && ko <= 2060;
+      return {
+        name: it.name, before: it.before, after: it.after, gain: '-' + it.gain + '%', ok,
+        target: it.kind === 'image' ? (ok ? 'Dans la cible 800 Ko – 2 Mo' : 'Hors cible') : 'Vidéo · CRF ' + s.crf
+      };
+    });
+    const avgGain = doneItems.length ? Math.round(doneItems.reduce((a, b) => a + b.gain, 0) / doneItems.length) : 0;
+    const modeTitles = { copy: 'Copie dans le dossier d\'export', suffix: 'Suffixe _opt', folder: 'Sous-dossier horodaté' };
+
+    // Paramètres
+    const setSlider = (key, v) => {
+      const st = this.state;
+      if (key === 'qMin') this.setState({ qMin: Math.min(v, st.qMax) });
+      else if (key === 'qMax') this.setState({ qMax: Math.max(v, st.qMin) });
+      else this.setState({ [key]: v });
+    };
+    const imageSliders = [
+      this.slider('s-qmin', 'Qualité minimale (Qmin)', 65, 92, s.qMin, 'Q = ' + s.qMin, 'Borne basse de la recherche : en dessous, la dégradation devient visible.', e => setSlider('qMin', Number(e.target.value))),
+      this.slider('s-qmax', 'Qualité maximale (Qmax)', 65, 92, s.qMax, 'Q = ' + s.qMax, 'Borne haute de la recherche : un Q plus élevé donne un fichier plus lourd.', e => setSlider('qMax', Number(e.target.value))),
+      this.slider('s-threads', 'Threads parallèles (rayon)', 1, 8, s.threads, s.threads + (s.threads > 1 ? ' threads' : ' thread'), 'Chaque image est traitée sur un thread du pool rayon : plus de threads, plus de CPU.', e => setSlider('threads', Number(e.target.value)))
+    ];
+    imageSliders[0].minLabel = '65 (plus léger)'; imageSliders[0].maxLabel = '92 (plus fidèle)';
+    imageSliders[1].minLabel = '65 (plus léger)'; imageSliders[1].maxLabel = '92 (plus fidèle)';
+    const videoSliders = [
+      this.slider('s-crf', 'Facteur d\'encodage CRF', 23, 28, s.crf, 'CRF ' + s.crf, 'Plus le CRF est bas, plus la qualité est haute et le fichier lourd.', e => setSlider('crf', Number(e.target.value)))
+    ];
+    videoSliders[0].minLabel = '23 (qualité max)'; videoSliders[0].maxLabel = '28 (compression max)';
+
+    // Simulation de la recherche dichotomique
+    const tMo = s.targetKo / 1024;
+    const sizeAt = q => 0.8 * Math.exp(0.0365 * (q - 65));
+    let lo = s.qMin, hi = s.qMax, i = 0;
+    const bisectSteps = [];
+    while (hi - lo > 1 && i < 5) {
+      const mid = Math.round((lo + hi) / 2), sz = sizeAt(mid), ok = sz <= tMo;
+      bisectSteps.push({ n: i + 1, q: mid, size: this.fmt(sz), verdict: ok ? 'sous la cible : on monte Q' : 'au-dessus de la cible : on baisse Q' });
+      if (ok) lo = mid; else hi = mid;
+      i++;
+    }
+    if (!bisectSteps.length) bisectSteps.push({ n: 1, q: lo, size: this.fmt(sizeAt(lo)), verdict: 'bornes identiques' });
+
+    const modes = [
+      { id: 'copy', title: 'Copier dans le dossier d\'export', desc: 'Les fichiers compressés sont écrits dans le dossier de destination (recommandé).' },
+      { id: 'suffix', title: 'Ajouter le suffixe _opt', desc: 'Les fichiers compressés sont écrits à côté des originaux, avec le suffixe _opt.' },
+      { id: 'folder', title: 'Créer un sous-dossier horodaté', desc: 'Chaque lot est rangé dans un sous-dossier daté du dossier d\'export.' }
+    ].map(m => ({ title: m.title, desc: m.desc, checked: s.mode === m.id, cls: 'gc-opt' + (s.mode === m.id ? ' gc-opt--on' : ''), pick: () => this.setState({ mode: m.id }) }));
+
+    const al = s.alert || { title: '', body: '', detail: '' };
+    const pctT = (s.targetKo - 800) / (2048 - 800);
+
+    return {
+      tabDash: s.tab === 'dash', tabFiles: s.tab === 'files', tabExport: s.tab === 'export', tabSettings: s.tab === 'settings',
+      goDash: () => this.setState({ tab: 'dash' }), goFiles: () => this.setState({ tab: 'files' }),
+      goExport: () => this.setState({ tab: 'export' }), goSettings: () => this.setState({ tab: 'settings' }),
+
+      folders, destValue: String(s.dest),
+      setDest: e => this.setState({ dest: Number(e.target.value) }),
+      nextDest: () => this.setState({ dest: (this.state.dest + 1) % 3 }),
+      targetKo: s.targetKo, targetLabel: this.fmt(s.targetKo / 1024) + ' (' + s.targetKo + ' Ko)',
+      targetFill: 'calc(10px + (100% - 20px) * ' + pctT + ')',
+      setTarget: e => this.setState({ targetKo: Number(e.target.value) }),
+
+      items, queueEmpty: items.length === 0, imgCount, vidCount,
+      imgQuotaW: Math.round(imgCount / 50 * 100) + '%', vidQuotaW: Math.round(vidCount / 20 * 100) + '%',
+      addBatch: () => this.addBatch(),
+      allowDrop: e => e.preventDefault(),
+      dropFiles: e => { e.preventDefault(); this.addBatch(); },
+      clearQueue: () => this.setState({ files: [], running: false }),
+
+      running: s.running,
+      statsText: (s.hasRun || s.running ? '' : 'ex. ') + 'CPU : ' + s.cpu + '% • RAM : ' + s.ram.toFixed(1) + ' Go',
+      startLabel: s.running ? 'COMPRESSION EN COURS…' : (pending > 0 ? 'LANCER LA COMPRESSION' : 'COMPRESSION TERMINÉE'),
+      startDisabled: s.running || pending === 0,
+      start: () => this.setState({ running: true, hasRun: true }),
+      pause: () => this.setState({ running: false }),
+
+      chips, visibleItems, visibleEmpty: visibleItems.length === 0,
+      simulateOverflow: () => this.openVideoAlert(21),
+
+      modeBadge: 'Écriture : ' + modeTitles[s.mode],
+      statCount: String(doneItems.length),
+      statGain: doneItems.length ? '-' + avgGain + '%' : '—',
+      statSaved: doneItems.length ? this.fmt(sumBefore - sumAfter) : '—',
+      reportRows, reportEmpty: doneItems.length === 0, reportHasRows: doneItems.length > 0,
+
+      imageSliders, videoSliders, bisectSteps, bisectChosen: lo,
+      modes, exif: s.exif, toggleExif: () => this.setState({ exif: !this.state.exif }),
+      resetSettings: () => this.setState({ qMin: 65, qMax: 92, threads: 4, crf: 26, mode: 'copy', exif: true }),
+
+      hasAlert: !!s.alert, alertTitle: al.title, alertBody: al.body, alertDetail: al.detail,
+      closeAlert: () => this.setState({ alert: null })
+    };
+  }
+}
+</script>
+</body>
+</html>
