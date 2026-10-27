@@ -9,6 +9,7 @@ describe('HeaderTabs Component', () => {
 
     expect(screen.getByText('Tableau de bord')).toBeDefined();
     expect(screen.getByText('Paramètres')).toBeDefined();
+    expect(screen.getByAltText('GO COMPRESSOR')).toBeDefined();
     expect(screen.queryByText('Fichiers')).toBeNull();
     expect(screen.queryByText("Dossier d'export")).toBeNull();
   });
