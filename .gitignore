@@ -16,6 +16,9 @@ dist-ssr
 target/
 src-tauri/target/
 src-tauri/gen/schemas
+bin/
+src-tauri/binaries/ffmpeg-*
+src-tauri/binaries/ffprobe-*
 
 # Editor directories and files
 .vscode/*

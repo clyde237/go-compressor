@@ -230,56 +230,31 @@ async fn process_media_batch(
 
     let mut report_items = image_reports;
 
-    // 3. Traitement des vidéos (séquentiel - Phase 5)
-    for vid_path_str in &videos {
-        let path = Path::new(vid_path_str);
-        let orig_len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-
-        let _ = app.emit(
-            "compression-progress",
-            CompressionProgressEvent {
-                file_path: vid_path_str.clone(),
-                progress_percent: 15.0,
-                current_bytes: 0,
-                stage: "Transcodage séquentiel FFmpeg...".into(),
-                is_done: false,
-            },
-        );
-
-        let dest_path = export_engine::resolve_export_path(
-            path,
+    // 3. Traitement des vidéos (séquentiel FIFO - Phase 5)
+    if !videos.is_empty() {
+        let app_handle_video = app.clone();
+        let video_reports = video_engine::transcode_videos_sequential(
+            &videos,
             out_dir,
             &config.export_mode,
-            None,
-        );
-
-        let final_len = (orig_len as f64 * 0.35) as u64;
-        let gain = if orig_len > 0 && final_len < orig_len {
-            (((orig_len - final_len) as f64 / orig_len as f64) * 100.0) as u32
-        } else {
-            0
-        };
-
-        let _ = app.emit(
-            "compression-progress",
-            CompressionProgressEvent {
-                file_path: vid_path_str.clone(),
-                progress_percent: 100.0,
-                current_bytes: final_len,
-                stage: "Transcodage terminé".into(),
-                is_done: true,
+            config.crf,
+            move |file_path, progress, current_bytes, stage, is_done| {
+                let _ = app_handle_video.emit(
+                    "compression-progress",
+                    CompressionProgressEvent {
+                        file_path,
+                        progress_percent: progress,
+                        current_bytes,
+                        stage: stage.to_string(),
+                        is_done,
+                    },
+                );
             },
-        );
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        report_items.push(ProcessedMediaItem {
-            file_path: vid_path_str.clone(),
-            original_size_bytes: orig_len,
-            output_size_bytes: final_len,
-            output_path: dest_path.to_string_lossy().to_string(),
-            gain_percent: gain,
-            success: true,
-            error_message: None,
-        });
+        report_items.extend(video_reports);
     }
 
     let total_orig: u64 = report_items.iter().map(|i| i.original_size_bytes).sum();

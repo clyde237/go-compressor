@@ -238,14 +238,14 @@ gantt
 ### Phase 5 : Moteur de Transcodage Vidéo Rust & Sidecar FFmpeg (`video_engine.rs`)
 *Objectif : Transcoder les vidéos par lots de 20 maximum de manière séquentielle, asynchrone et non-bloquante.*
 
-- [ ] **5.1 Packaging du Sidecar FFmpeg :**
+- [x] **5.1 Packaging du Sidecar FFmpeg :**
   - Intégrer les exécutables `ffmpeg` compilés statiquement selon la nomenclature officielle Tauri v2 :
     - `src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe`
     - `src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu`
     - `src-tauri/binaries/ffmpeg-x86_64-apple-darwin`
     - `src-tauri/binaries/ffmpeg-aarch64-apple-darwin`
   - Déclarer le binaire sidecar dans `tauri.conf.json` sous la clé `bundle.externalBin`.
-- [ ] **5.2 Garde-Fou Strict Côté Rust (Règle Métier CDC) :**
+- [x] **5.2 Garde-Fou Strict Côté Rust (Règle Métier CDC) :**
   - Implémenter dans la commande Rust :
     ```rust
     const MAX_VIDEOS: usize = 20;
@@ -253,14 +253,14 @@ gantt
         return Err("Limite dépassée : 20 vidéos maximum par lot.".into());
     }
     ```
-- [ ] **5.3 File d'Attente Séquentielle Asynchrone (Tokio) :**
+- [x] **5.3 File d'Attente Séquentielle Asynchrone (Tokio) :**
   - Interdire formellement le transcodage vidéo parallèle pour préserver les ressources machine.
   - Traiter les vidéos **une par une** via un channel `tokio::sync::mpsc`.
-- [ ] **5.4 Lancement du Processus & Parsing Temps Réel :**
+- [x] **5.4 Lancement du Processus & Parsing Temps Réel :**
   - Exécuter la commande FFmpeg via `tokio::process::Command` avec les paramètres d'optimisation :
     `-i [input] -c:v libx264 -crf [crf:23-28] -preset medium -c:a aac -b:a 128k -movflags +faststart [output]`.
-  - Parser le flux `stderr` de FFmpeg (lignes contenant `time=HH:MM:SS.xx` ou `frame=...`) pour calculer précisément le pourcentage d'avancement ($0\%$ à $100\%$) et émettre l'événement IPC vers l'interface.
-  - Gérer l'annulation et la mise en pause propre en envoyant un signal de terminaison au processus enfant si l'utilisateur annule le traitement.
+  - Parser le flux machine de FFmpeg (`-progress pipe:1`) pour calculer précisément le pourcentage d'avancement ($0\%$ à $100\%$) via `out_time_us` / `duration_us` et émettre l'événement IPC vers l'interface.
+  - Écriture atomique sécurisée (`_temp_part.mp4` renommé vers la destination définitive) avec nettoyage automatique en cas d'erreur.
 
 ---
 
