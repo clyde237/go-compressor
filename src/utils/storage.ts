@@ -3,7 +3,7 @@
  * Mémorisation non-bloquante et sécurisée dans localStorage.
  */
 
-import { BatchConfig, ExportMode } from '../types/ipc';
+import { BatchConfig, ExportMode, ImageFormat, VideoCodec, VideoContainer } from '../types/ipc';
 
 export const SETTINGS_STORAGE_KEY = 'go_compressor_settings_v1';
 export const EXPORT_DIR_STORAGE_KEY = 'go_compressor_export_dir_v1';
@@ -19,9 +19,22 @@ export const DEFAULT_BATCH_CONFIG: BatchConfig = {
   export_mode: 'copy',
   preserve_exif: true,
   output_directory: '',
+  image_format: 'jpeg',
+  video_codec: 'h264',
+  video_container: 'auto',
+  video_max_size_percent: 50,
+  video_max_height: 0,
 };
 
 const VALID_EXPORT_MODES: ExportMode[] = ['copy', 'suffix', 'folder'];
+export const VALID_IMAGE_FORMATS: ImageFormat[] = ['auto', 'jpeg', 'webp', 'png'];
+export const VALID_VIDEO_CODECS: VideoCodec[] = ['h264', 'h265', 'vp9'];
+export const VALID_VIDEO_CONTAINERS: VideoContainer[] = ['auto', 'mp4', 'mkv', 'mov', 'webm'];
+export const VALID_VIDEO_MAX_HEIGHTS: number[] = [0, 2160, 1440, 1080, 720, 480];
+
+function pickEnum<T extends string>(value: unknown, allowed: T[], fallback: T): T {
+  return typeof value === 'string' && allowed.includes(value as T) ? (value as T) : fallback;
+}
 
 /**
  * Valide et assainit une configuration brute
@@ -86,6 +99,35 @@ export function sanitizeBatchConfig(raw: unknown): BatchConfig {
       ? candidate.output_directory
       : DEFAULT_BATCH_CONFIG.output_directory;
 
+  const image_format = pickEnum(
+    candidate.image_format,
+    VALID_IMAGE_FORMATS,
+    DEFAULT_BATCH_CONFIG.image_format
+  );
+  const video_codec = pickEnum(
+    candidate.video_codec,
+    VALID_VIDEO_CODECS,
+    DEFAULT_BATCH_CONFIG.video_codec
+  );
+  const video_container = pickEnum(
+    candidate.video_container,
+    VALID_VIDEO_CONTAINERS,
+    DEFAULT_BATCH_CONFIG.video_container
+  );
+
+  const video_max_size_percent =
+    typeof candidate.video_max_size_percent === 'number' &&
+    candidate.video_max_size_percent >= 10 &&
+    candidate.video_max_size_percent <= 100
+      ? candidate.video_max_size_percent
+      : DEFAULT_BATCH_CONFIG.video_max_size_percent;
+
+  const video_max_height =
+    typeof candidate.video_max_height === 'number' &&
+    VALID_VIDEO_MAX_HEIGHTS.includes(candidate.video_max_height)
+      ? candidate.video_max_height
+      : DEFAULT_BATCH_CONFIG.video_max_height;
+
   return {
     target_min_bytes,
     target_max_bytes,
@@ -97,6 +139,11 @@ export function sanitizeBatchConfig(raw: unknown): BatchConfig {
     export_mode,
     preserve_exif,
     output_directory,
+    image_format,
+    video_codec,
+    video_container,
+    video_max_size_percent,
+    video_max_height,
   };
 }
 

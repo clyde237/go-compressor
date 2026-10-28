@@ -49,6 +49,21 @@ describe('storage.ts - Persistance des préférences utilisateur', () => {
     expect(loaded).toEqual(DEFAULT_BATCH_CONFIG);
   });
 
+  it('sanitizeBatchConfig rejette les formats de sortie et plafonds vidéo invalides', () => {
+    const sanitized = sanitizeBatchConfig({
+      image_format: 'gif',
+      video_codec: 'mpeg2',
+      video_container: 'avi',
+      video_max_size_percent: 5,
+      video_max_height: 333,
+    });
+    expect(sanitized.image_format).toBe(DEFAULT_BATCH_CONFIG.image_format);
+    expect(sanitized.video_codec).toBe(DEFAULT_BATCH_CONFIG.video_codec);
+    expect(sanitized.video_container).toBe(DEFAULT_BATCH_CONFIG.video_container);
+    expect(sanitized.video_max_size_percent).toBe(DEFAULT_BATCH_CONFIG.video_max_size_percent);
+    expect(sanitized.video_max_height).toBe(DEFAULT_BATCH_CONFIG.video_max_height);
+  });
+
   it('saveSettings persiste correctement les paramètres dans localStorage', () => {
     const customConfig: BatchConfig = {
       target_min_bytes: 800 * 1024,
@@ -61,6 +76,11 @@ describe('storage.ts - Persistance des préférences utilisateur', () => {
       export_mode: 'folder',
       preserve_exif: false,
       output_directory: '/opt/media/export',
+      image_format: 'webp',
+      video_codec: 'h265',
+      video_container: 'mkv',
+      video_max_size_percent: 35,
+      video_max_height: 720,
     };
 
     saveSettings(customConfig);

@@ -1,7 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DashboardView } from './DashboardView';
 import { MediaItem } from '../../types/media';
+import { DashboardView, OutputSettings } from './DashboardView';
+
+const OUTPUT_SETTINGS: OutputSettings = {
+  image_format: 'jpeg',
+  video_codec: 'h264',
+  video_container: 'auto',
+  video_max_size_percent: 50,
+  video_max_height: 0,
+};
 
 const MOCK_ITEMS: MediaItem[] = [
   {
@@ -52,6 +60,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -87,6 +97,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -117,6 +129,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -152,6 +166,8 @@ describe('DashboardView Component', () => {
         onSaveSingleFile={onSaveSingleFile}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -205,6 +221,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={onDownloadZip}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -250,6 +268,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -306,6 +326,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -355,6 +377,8 @@ describe('DashboardView Component', () => {
         onDownloadZip={vi.fn()}
         crf={26}
         exportMode="copy"
+        outputSettings={OUTPUT_SETTINGS}
+        onOutputSettingsChange={vi.fn()}
       />
     );
 
@@ -366,8 +390,88 @@ describe('DashboardView Component', () => {
     fireEvent.click(browseBtn);
     expect(onBrowseFolder).toHaveBeenCalledTimes(1);
 
-    const select = screen.getByRole('combobox');
+    const select = screen.getByRole('combobox', { name: 'Dossier de destination' });
     fireEvent.change(select, { target: { value: '/dossier-2' } });
     expect(onDestChange).toHaveBeenCalledWith('/dossier-2');
+  });
+  const baseProps = {
+    items: MOCK_ITEMS,
+    onMediaTabChange: vi.fn(),
+    folders: [{ label: 'Dossier 1', value: '0' }],
+    destValue: '0',
+    onDestChange: vi.fn(),
+    onBrowseFolder: vi.fn(),
+    targetKo: 1104,
+    onTargetChange: vi.fn(),
+    onAddBatch: vi.fn(),
+    onClearQueue: vi.fn(),
+    onRemoveItem: vi.fn(),
+    running: false,
+    hasRun: false,
+    cpu: 0,
+    ram: 0,
+    onStart: vi.fn(),
+    onPause: vi.fn(),
+    onDownloadZip: vi.fn(),
+    crf: 26,
+    exportMode: 'copy' as const,
+    outputSettings: OUTPUT_SETTINGS,
+  };
+
+  it('permet de choisir le format de sortie des images', () => {
+    const onOutputSettingsChange = vi.fn();
+    render(
+      <DashboardView {...baseProps} activeMediaTab="images" onOutputSettingsChange={onOutputSettingsChange} />
+    );
+
+    fireEvent.change(screen.getByLabelText('Format de sortie'), { target: { value: 'webp' } });
+    expect(onOutputSettingsChange).toHaveBeenCalledWith({ image_format: 'webp' });
+  });
+
+  it('réaligne codec et conteneur vidéo incompatibles', () => {
+    const onOutputSettingsChange = vi.fn();
+    render(
+      <DashboardView {...baseProps} activeMediaTab="videos" onOutputSettingsChange={onOutputSettingsChange} />
+    );
+
+    // WebM n'accepte que VP9
+    fireEvent.change(screen.getByLabelText('Format de sortie'), { target: { value: 'webm' } });
+    expect(onOutputSettingsChange).toHaveBeenLastCalledWith({ video_container: 'webm', video_codec: 'vp9' });
+
+    fireEvent.change(screen.getByLabelText('Codec vidéo'), { target: { value: 'h265' } });
+    expect(onOutputSettingsChange).toHaveBeenLastCalledWith({ video_codec: 'h265' });
+
+    fireEvent.change(screen.getByLabelText('Taille maximale du fichier compressé'), { target: { value: '30' } });
+    expect(onOutputSettingsChange).toHaveBeenLastCalledWith({ video_max_size_percent: 30 });
+
+    fireEvent.change(screen.getByLabelText('Résolution'), { target: { value: '720' } });
+    expect(onOutputSettingsChange).toHaveBeenLastCalledWith({ video_max_height: 720 });
+  });
+
+  it('désactive les codecs absents du FFmpeg embarqué', () => {
+    render(
+      <DashboardView
+        {...baseProps}
+        activeMediaTab="videos"
+        onOutputSettingsChange={vi.fn()}
+        supportedVideoCodecs={['h264']}
+      />
+    );
+
+    const vp9 = screen.getByRole('option', { name: 'VP9 (indisponible)' }) as HTMLOptionElement;
+    expect(vp9.disabled).toBe(true);
+  });
+
+  it('affiche le format produit quand il diffère de la source', () => {
+    render(
+      <DashboardView
+        {...baseProps}
+        items={[{ ...MOCK_ITEMS[0], outputPath: '/export/photo_test.webp' }]}
+        activeMediaTab="images"
+        onOutputSettingsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/\(WEBP\)/)).toBeDefined();
   });
 });

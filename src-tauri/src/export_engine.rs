@@ -48,12 +48,17 @@ fn days_to_civil(days_since_epoch: u64) -> (u32, u32, u32) {
     (y as u32, m, d)
 }
 
-/// Résout le chemin de destination pour un fichier selon le mode d'export choisi
+/// Résout le chemin de destination pour un fichier selon le mode d'export choisi.
+///
+/// `output_extension` force l'extension du fichier produit (format de sortie choisi
+/// par l'utilisateur). Avec `None`, l'extension source est conservée, sauf pour les
+/// formats bruts ou vectoriels qui sont normalisés en JPG.
 pub fn resolve_export_path(
     input_path: &Path,
     output_dir: &Path,
     mode: &ExportMode,
     folder_timestamp: Option<&str>,
+    output_extension: Option<&str>,
 ) -> PathBuf {
     let file_stem = input_path
         .file_stem()
@@ -64,9 +69,12 @@ pub fn resolve_export_path(
         .and_then(|e| e.to_str())
         .unwrap_or("");
     // Les formats bruts ou vectoriels (RAW, HEIC, SVG) sont convertis en JPG pour un rendu universel
-    let extension = match raw_extension.to_lowercase().as_str() {
-        "heic" | "heif" | "raw" | "dng" | "cr2" | "nef" | "arw" | "svg" => "jpg",
-        _ => raw_extension,
+    let extension = match output_extension {
+        Some(forced) => forced,
+        None => match raw_extension.to_lowercase().as_str() {
+            "heic" | "heif" | "raw" | "dng" | "cr2" | "nef" | "arw" | "svg" => "jpg",
+            _ => raw_extension,
+        },
     };
 
     match mode {
@@ -77,8 +85,11 @@ pub fn resolve_export_path(
                 format!("{file_stem}.{extension}")
             };
             let target = output_dir.join(&file_name);
-            // Protection non-destructive CDC §4.4 : ne jamais écraser le fichier original
-            if target == input_path {
+            // Protection non-destructive CDC §4.4 : ne jamais écraser un original.
+            // Si l'export se fait dans le dossier source, le changement de format
+            // pourrait viser un autre original (ex. photo.png -> photo.jpg existant) :
+            // le suffixe _opt est alors systématique.
+            if target == input_path || input_path.parent() == Some(output_dir) {
                 let safe_name = if extension.is_empty() {
                     format!("{file_stem}_opt")
                 } else {
@@ -177,7 +188,7 @@ mod tests {
     fn test_resolve_export_path_copy() {
         let input = Path::new("/home/user/photos/vacances.jpg");
         let dest = Path::new("/home/user/export");
-        let out = resolve_export_path(input, dest, &ExportMode::Copy, None);
+        let out = resolve_export_path(input, dest, &ExportMode::Copy, None, None);
         assert_eq!(out, PathBuf::from("/home/user/export/vacances.jpg"));
     }
 
@@ -185,7 +196,7 @@ mod tests {
     fn test_resolve_export_path_copy_non_destructive_collision() {
         let input = Path::new("/home/user/export/vacances.jpg");
         let dest = Path::new("/home/user/export");
-        let out = resolve_export_path(input, dest, &ExportMode::Copy, None);
+        let out = resolve_export_path(input, dest, &ExportMode::Copy, None, None);
         assert_eq!(out, PathBuf::from("/home/user/export/vacances_opt.jpg"));
     }
 
@@ -193,7 +204,7 @@ mod tests {
     fn test_resolve_export_path_suffix() {
         let input = Path::new("/home/user/photos/vacances.jpg");
         let dest = Path::new("/home/user/export");
-        let out = resolve_export_path(input, dest, &ExportMode::Suffix, None);
+        let out = resolve_export_path(input, dest, &ExportMode::Suffix, None, None);
         assert_eq!(out, PathBuf::from("/home/user/photos/vacances_opt.jpg"));
     }
 
@@ -201,7 +212,7 @@ mod tests {
     fn test_resolve_export_path_heic_normalization() {
         let input = Path::new("/home/user/photos/image_iphone.heic");
         let dest = Path::new("/home/user/export");
-        let out = resolve_export_path(input, dest, &ExportMode::Suffix, None);
+        let out = resolve_export_path(input, dest, &ExportMode::Suffix, None, None);
         assert_eq!(out, PathBuf::from("/home/user/photos/image_iphone_opt.jpg"));
     }
 
@@ -209,11 +220,28 @@ mod tests {
     fn test_resolve_export_path_folder() {
         let input = Path::new("/home/user/photos/vacances.jpg");
         let dest = Path::new("/home/user/export");
-        let out = resolve_export_path(input, dest, &ExportMode::Folder, Some("2026-10-27"));
+        let out = resolve_export_path(input, dest, &ExportMode::Folder, Some("2026-10-27"), None);
         assert_eq!(
             out,
             PathBuf::from("/home/user/export/Export_2026-10-27/vacances.jpg")
         );
+    }
+
+    #[test]
+    fn test_resolve_export_path_forced_extension() {
+        let input = Path::new("/home/user/photos/capture.png");
+        let dest = Path::new("/home/user/export");
+        let out = resolve_export_path(input, dest, &ExportMode::Copy, None, Some("webp"));
+        assert_eq!(out, PathBuf::from("/home/user/export/capture.webp"));
+    }
+
+    #[test]
+    fn test_resolve_export_path_copy_into_source_dir_never_targets_sibling() {
+        // photo.png -> JPG dans son propre dossier ne doit pas viser un photo.jpg original
+        let input = Path::new("/home/user/photos/photo.png");
+        let dest = Path::new("/home/user/photos");
+        let out = resolve_export_path(input, dest, &ExportMode::Copy, None, Some("jpg"));
+        assert_eq!(out, PathBuf::from("/home/user/photos/photo_opt.jpg"));
     }
 
     #[test]

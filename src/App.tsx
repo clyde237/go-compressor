@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { BatchConfig } from './types/ipc';
+import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { BatchConfig, VideoCodec } from './types/ipc';
 import { loadSavedSettings, saveSettings, resetSavedSettings } from './utils/storage';
 import { HeaderTabs, TabId } from './components/layout/HeaderTabs';
 import { DashboardView, FolderOption, MediaTab } from './components/views/DashboardView';
 import { SettingsView } from './components/views/SettingsView';
 import { ModalAlert } from './components/common/ModalAlert';
-import { useMediaBatch } from './hooks/useMediaBatch';
+import { isTauriEnvironment, useMediaBatch } from './hooks/useMediaBatch';
 
 const INITIAL_FOLDERS: FolderOption[] = [
   { label: 'ex: /Utilisateurs/Media/Export', value: '0' },
@@ -20,6 +21,15 @@ export function App() {
   const [targetKo, setTargetKo] = useState<number>(() =>
     Math.round(loadSavedSettings().target_bytes / 1024)
   );
+  const [supportedVideoCodecs, setSupportedVideoCodecs] = useState<VideoCodec[] | undefined>(undefined);
+
+  // Codecs réellement compilés dans le FFmpeg embarqué (varie selon l'OS)
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+    invoke<VideoCodec[]>('get_supported_video_codecs')
+      .then(setSupportedVideoCodecs)
+      .catch(() => setSupportedVideoCodecs(undefined));
+  }, []);
 
   const {
     files,
@@ -126,6 +136,15 @@ export function App() {
             onSaveSingleFile={saveSingleFile}
             crf={settings.crf}
             exportMode={settings.export_mode}
+            outputSettings={{
+              image_format: settings.image_format,
+              video_codec: settings.video_codec,
+              video_container: settings.video_container,
+              video_max_size_percent: settings.video_max_size_percent,
+              video_max_height: settings.video_max_height,
+            }}
+            onOutputSettingsChange={handleUpdateSettings}
+            supportedVideoCodecs={supportedVideoCodecs}
           />
         )}
 

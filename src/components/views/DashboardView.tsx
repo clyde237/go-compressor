@@ -1,6 +1,6 @@
 import React from 'react';
 import { MediaItem } from '../../types/media';
-import { ExportMode } from '../../types/ipc';
+import { BatchConfig, ExportMode, ImageFormat, VideoCodec, VideoContainer } from '../../types/ipc';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
@@ -24,6 +24,68 @@ export interface FolderOption {
   label: string;
   value: string;
 }
+
+/** Réglages de format de sortie modifiables depuis le tableau de bord */
+export type OutputSettings = Pick<
+  BatchConfig,
+  'image_format' | 'video_codec' | 'video_container' | 'video_max_size_percent' | 'video_max_height'
+>;
+
+const IMAGE_FORMAT_OPTIONS: { value: ImageFormat; label: string; hint: string }[] = [
+  {
+    value: 'jpeg',
+    label: 'JPEG (.jpg)',
+    hint: 'Compatibilité universelle. Seul format qui conserve les métadonnées EXIF.',
+  },
+  {
+    value: 'webp',
+    label: 'WebP (.webp)',
+    hint: 'Environ 25 % plus léger que JPEG à qualité égale, gère la transparence.',
+  },
+  {
+    value: 'png',
+    label: 'PNG (.png)',
+    hint: 'Sans perte si le poids le permet, sinon palette 256 couleurs. Idéal pour captures et logos.',
+  },
+  {
+    value: 'auto',
+    label: 'Identique à la source',
+    hint: 'JPG, PNG et WebP gardent leur format ; les autres (HEIC, TIFF, RAW…) sortent en JPG.',
+  },
+];
+
+const VIDEO_CONTAINER_OPTIONS: { value: VideoContainer; label: string }[] = [
+  { value: 'auto', label: 'Identique à la source' },
+  { value: 'mp4', label: 'MP4 (.mp4)' },
+  { value: 'mkv', label: 'MKV (.mkv)' },
+  { value: 'mov', label: 'MOV (.mov)' },
+  { value: 'webm', label: 'WebM (.webm)' },
+];
+
+const VIDEO_CODEC_OPTIONS: { value: VideoCodec; label: string; hint: string }[] = [
+  { value: 'h264', label: 'H.264', hint: 'Lisible partout (TV, navigateurs, smartphones).' },
+  {
+    value: 'h265',
+    label: 'H.265 / HEVC',
+    hint: 'Environ 40 % plus léger que H.264 ; encodage plus lent, lecture sur appareils récents.',
+  },
+  { value: 'vp9', label: 'VP9', hint: 'Format ouvert du web, en WebM ou MKV ; encodage lent.' },
+];
+
+const VIDEO_HEIGHT_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Résolution d'origine" },
+  { value: 2160, label: '4K (2160p) maximum' },
+  { value: 1440, label: '1440p maximum' },
+  { value: 1080, label: '1080p maximum' },
+  { value: 720, label: '720p maximum' },
+  { value: 480, label: '480p maximum' },
+];
+
+const fileExtension = (path?: string): string => {
+  const name = path?.split(/[/\\]/).pop() ?? '';
+  const dotIdx = name.lastIndexOf('.');
+  return dotIdx > 0 ? name.slice(dotIdx + 1).toUpperCase() : '';
+};
 
 export interface DashboardViewProps {
   items: MediaItem[];
@@ -49,6 +111,10 @@ export interface DashboardViewProps {
   onSaveSingleFile?: (item: MediaItem) => void;
   crf: number;
   exportMode: ExportMode;
+  outputSettings: OutputSettings;
+  onOutputSettingsChange: (partial: Partial<OutputSettings>) => void;
+  /** Codecs présents dans le FFmpeg embarqué ; non défini = tous supposés disponibles */
+  supportedVideoCodecs?: VideoCodec[];
 }
 
 const MODE_TITLES: Record<ExportMode, string> = {
@@ -81,6 +147,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSaveSingleFile,
   crf,
   exportMode,
+  outputSettings,
+  onOutputSettingsChange,
+  supportedVideoCodecs,
 }) => {
   const images = items.filter((f) => f.kind === 'image');
   const videos = items.filter((f) => f.kind === 'video');
@@ -122,6 +191,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const targetLabel = formatBytes(targetKo * 1024) + ` (${targetKo} Ko)`;
+
+  const imageFormatHint =
+    IMAGE_FORMAT_OPTIONS.find((o) => o.value === outputSettings.image_format)?.hint ?? '';
+  const videoCodecHint =
+    VIDEO_CODEC_OPTIONS.find((o) => o.value === outputSettings.video_codec)?.hint ?? '';
+  const maxSizePct = outputSettings.video_max_size_percent;
+  const hasSizeCap = maxSizePct < 100;
+
+  // WebM n'accepte que VP9 ; MP4 et MOV n'utilisent pas VP9 : on réaligne l'autre réglage
+  const handleContainerChange = (container: VideoContainer) => {
+    const codec = outputSettings.video_codec;
+    if (container === 'webm' && codec !== 'vp9') {
+      onOutputSettingsChange({ video_container: container, video_codec: 'vp9' });
+    } else if ((container === 'mp4' || container === 'mov') && codec === 'vp9') {
+      onOutputSettingsChange({ video_container: container, video_codec: 'h264' });
+    } else {
+      onOutputSettingsChange({ video_container: container });
+    }
+  };
+
+  const handleCodecChange = (codec: VideoCodec) => {
+    const container = outputSettings.video_container;
+    if (codec === 'vp9' && (container === 'mp4' || container === 'mov')) {
+      onOutputSettingsChange({ video_codec: codec, video_container: 'webm' });
+    } else if (codec !== 'vp9' && container === 'webm') {
+      onOutputSettingsChange({ video_codec: codec, video_container: 'mp4' });
+    } else {
+      onOutputSettingsChange({ video_codec: codec });
+    }
+  };
 
   const startLabel = running
     ? 'COMPRESSION EN COURS…'
@@ -223,16 +322,122 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onChange={onTargetChange}
             helpText={`Poids cible par image : ${targetLabel}`}
           />
+
+          <div style={{ marginTop: '16px' }}>
+            <label htmlFor="image-format-select" className="gc-label">
+              Format de sortie
+            </label>
+            <select
+              id="image-format-select"
+              className="gc-field"
+              value={outputSettings.image_format}
+              onChange={(e) => onOutputSettingsChange({ image_format: e.target.value as ImageFormat })}
+              style={{ minHeight: '44px' }}
+            >
+              {IMAGE_FORMAT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <div className="gc-caption" style={{ marginTop: '4px' }}>
+              {imageFormatHint}
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="gc-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h2 className="gc-h2" style={{ margin: 0 }}>Garde-Fou & Transcodage Séquentiel</h2>
-            <p className="gc-muted" style={{ margin: '4px 0 0', fontSize: '14px' }}>
-              Traitement asynchrone FFmpeg (CRF {crf}) une vidéo à la fois pour protéger la RAM et le processeur.
-            </p>
+        <div className="gc-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 className="gc-h2" style={{ margin: 0 }}>Garde-Fou & Transcodage Séquentiel</h2>
+              <p className="gc-muted" style={{ margin: '4px 0 0', fontSize: '14px' }}>
+                Traitement asynchrone FFmpeg (CRF {crf}) une vidéo à la fois pour protéger la RAM et le processeur.
+              </p>
+            </div>
+            <Badge>Max 20 vidéos</Badge>
           </div>
-          <Badge>Max 20 vidéos</Badge>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            <div>
+              <label htmlFor="video-container-select" className="gc-label">
+                Format de sortie
+              </label>
+              <select
+                id="video-container-select"
+                className="gc-field"
+                value={outputSettings.video_container}
+                onChange={(e) => handleContainerChange(e.target.value as VideoContainer)}
+                style={{ minHeight: '44px' }}
+              >
+                {VIDEO_CONTAINER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="video-codec-select" className="gc-label">
+                Codec vidéo
+              </label>
+              <select
+                id="video-codec-select"
+                className="gc-field"
+                value={outputSettings.video_codec}
+                onChange={(e) => handleCodecChange(e.target.value as VideoCodec)}
+                style={{ minHeight: '44px' }}
+              >
+                {VIDEO_CODEC_OPTIONS.map((o) => {
+                  const unavailable = supportedVideoCodecs !== undefined && !supportedVideoCodecs.includes(o.value);
+                  return (
+                    <option key={o.value} value={o.value} disabled={unavailable}>
+                      {unavailable ? `${o.label} (indisponible)` : o.label}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="video-height-select" className="gc-label">
+                Résolution
+              </label>
+              <select
+                id="video-height-select"
+                className="gc-field"
+                value={outputSettings.video_max_height}
+                onChange={(e) => onOutputSettingsChange({ video_max_height: Number(e.target.value) })}
+                style={{ minHeight: '44px' }}
+              >
+                {VIDEO_HEIGHT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="gc-caption">{videoCodecHint}</div>
+
+          <RangeSlider
+            id="video-max-size-slider"
+            label="Taille maximale du fichier compressé"
+            displayValue={hasSizeCap ? `≤ ${maxSizePct} % de l'original` : 'Sans plafond'}
+            min={10}
+            max={100}
+            step={5}
+            value={maxSizePct}
+            minLabel="10 % (compression forte)"
+            maxLabel="100 % (qualité CRF seule)"
+            helpText={
+              hasSizeCap
+                ? `Ex. : une vidéo de 67 Mo sortira à ${Math.round((67 * maxSizePct) / 100)} Mo au plus. Le débit est plafonné d'après la source ; les scènes simples sortent encore plus légères.`
+                : 'Seul le CRF pilote la qualité : une vidéo déjà compressée peut ne presque pas réduire.'
+            }
+            onChange={(v) => onOutputSettingsChange({ video_max_size_percent: v })}
+          />
         </div>
       )}
 
@@ -279,6 +484,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               const isError = item.status === 'error';
               const initialStr = formatBytes(item.sizeBytes);
               const finalStr = item.finalSizeBytes ? formatBytes(item.finalSizeBytes) : '';
+              const outputExt = isDone ? fileExtension(item.outputPath) : '';
+              const showOutputExt = outputExt !== '' && outputExt !== item.format.toUpperCase();
               const gainPercent =
                 isDone && item.finalSizeBytes
                   ? calculateGainPercent(item.sizeBytes, item.finalSizeBytes)
@@ -334,7 +541,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </span>
                       )}
                       {isDone && finalStr ? (
-                        <span style={{ color: 'var(--brand-text)' }}> → {finalStr}</span>
+                        <span style={{ color: 'var(--brand-text)' }}>
+                          {' → '}
+                          {finalStr}
+                          {showOutputExt ? ` (${outputExt})` : ''}
+                        </span>
                       ) : null}
                       {isDone ? (
                         <span className="gc-status gc-status--done">
@@ -422,6 +633,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             <select
               id="dest-dash-select"
+              aria-label="Dossier de destination"
               className="gc-field"
               value={destValue}
               onChange={(e) => onDestChange(e.target.value)}
