@@ -18,6 +18,20 @@ pub struct BatchConfig {
     pub export_mode: export_engine::ExportMode,
     pub preserve_exif: bool,
     pub output_directory: String,
+    #[serde(default)]
+    pub image_format: image_engine::ImageOutputFormat,
+    #[serde(default)]
+    pub video_codec: video_engine::VideoCodec,
+    #[serde(default)]
+    pub video_container: video_engine::VideoContainer,
+    #[serde(default = "default_video_max_size_percent")]
+    pub video_max_size_percent: u8,
+    #[serde(default)]
+    pub video_max_height: u32,
+}
+
+fn default_video_max_size_percent() -> u8 {
+    video_engine::DEFAULT_MAX_SIZE_PERCENT
 }
 
 impl Default for BatchConfig {
@@ -33,6 +47,11 @@ impl Default for BatchConfig {
             export_mode: export_engine::ExportMode::Copy,
             preserve_exif: true,
             output_directory: String::new(),
+            image_format: image_engine::ImageOutputFormat::default(),
+            video_codec: video_engine::VideoCodec::default(),
+            video_container: video_engine::VideoContainer::default(),
+            video_max_size_percent: video_engine::DEFAULT_MAX_SIZE_PERCENT,
+            video_max_height: 0,
         }
     }
 }
@@ -179,6 +198,14 @@ fn save_file_to(source: String, destination: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Codecs vidéo disponibles dans le binaire FFmpeg embarqué ("h264", "h265", "vp9")
+#[tauri::command]
+async fn get_supported_video_codecs() -> Result<Vec<video_engine::VideoCodec>, String> {
+    tokio::task::spawn_blocking(video_engine::supported_video_codecs)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Génère une archive ZIP contenant tous les fichiers spécifiés
 #[tauri::command]
 fn create_zip_archive(files: Vec<String>, destination: String) -> Result<u64, String> {
@@ -227,6 +254,7 @@ async fn process_media_batch(
         q_max: config.q_max,
         threads: config.threads,
         preserve_exif: config.preserve_exif,
+        output_format: config.image_format,
     };
 
     let app_handle = app.clone();
@@ -256,13 +284,20 @@ async fn process_media_batch(
 
     // 3. Traitement des vidéos (séquentiel FIFO - Phase 5)
     if !videos.is_empty() {
+        let video_opts = video_engine::VideoTranscodeOptions {
+            crf: config.crf,
+            codec: config.video_codec,
+            container: config.video_container,
+            max_size_percent: config.video_max_size_percent.clamp(10, 100),
+            max_height: config.video_max_height,
+        };
         let app_handle_video = app.clone();
         let video_reports = video_engine::transcode_videos_sequential(
             &videos,
             out_dir,
             &config.export_mode,
             batch_folder_timestamp.as_deref(),
-            config.crf,
+            &video_opts,
             move |file_path, progress, current_bytes, stage, is_done, is_error, error_message| {
                 let _ = app_handle_video.emit(
                     "compression-progress",
@@ -318,7 +353,8 @@ pub fn run() {
             process_media_batch,
             inspect_media_files,
             open_directory_in_explorer,
-            save_file_to
+            save_file_to,
+            get_supported_video_codecs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,7 +1,14 @@
 //! Image compression engine using Rayon, adaptive scaling and dichotomy on quality Q.
+//!
+//! Output formats:
+//! - JPEG and WebP: dichotomy on Q in [q_min, q_max], then adaptive downscaling
+//! - PNG: lossless first, then 256-color palette quantization (NeuQuant), then downscaling
 
+use color_quant::NeuQuant;
 use image::codecs::jpeg::JpegEncoder;
-use image::{DynamicImage, imageops};
+use image::codecs::png::{CompressionType, FilterType as PngFilterType, PngEncoder};
+use image::metadata::Orientation;
+use image::{DynamicImage, ImageEncoder, RgbImage, imageops};
 use rayon::prelude::*;
 use std::fs;
 use std::io::Cursor;
@@ -35,6 +42,56 @@ pub enum ImageEngineError {
     QuotaExceeded(usize),
 }
 
+/// Format d'image produit par le moteur
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageOutputFormat {
+    /// Conserve le format source s'il est encodable (JPEG, PNG, WebP), sinon JPEG
+    Auto,
+    #[default]
+    Jpeg,
+    Webp,
+    Png,
+}
+
+impl ImageOutputFormat {
+    /// Format concret encodable correspondant à l'extension source, s'il existe
+    pub fn from_source(input_path: &Path) -> Option<Self> {
+        let ext = input_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        match ext.as_str() {
+            "jpg" | "jpeg" => Some(Self::Jpeg),
+            "png" => Some(Self::Png),
+            "webp" => Some(Self::Webp),
+            _ => None,
+        }
+    }
+
+    /// Résout le format concret (jamais `Auto`) et l'extension du fichier produit
+    pub fn resolve(self, input_path: &Path) -> (Self, String) {
+        let concrete = match self {
+            Self::Auto => Self::from_source(input_path).unwrap_or(Self::Jpeg),
+            other => other,
+        };
+        let source_ext = input_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let ext = match concrete {
+            // Conserve la graphie .jpeg d'origine quand le format ne change pas
+            Self::Jpeg if source_ext == "jpeg" => "jpeg",
+            Self::Jpeg | Self::Auto => "jpg",
+            Self::Webp => "webp",
+            Self::Png => "png",
+        };
+        (concrete, ext.to_string())
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ImageCompressionOptions {
     pub target_min_bytes: u64,
@@ -44,6 +101,7 @@ pub struct ImageCompressionOptions {
     pub q_max: u8,
     pub threads: usize,
     pub preserve_exif: bool,
+    pub output_format: ImageOutputFormat,
 }
 
 impl Default for ImageCompressionOptions {
@@ -56,6 +114,7 @@ impl Default for ImageCompressionOptions {
             q_max: DEFAULT_Q_MAX,
             threads: 4,
             preserve_exif: true,
+            output_format: ImageOutputFormat::default(),
         }
     }
 }
@@ -63,6 +122,8 @@ impl Default for ImageCompressionOptions {
 #[derive(Debug, Clone)]
 pub struct CompressionResult {
     pub output_path: PathBuf,
+    pub format: ImageOutputFormat,
+    /// Facteur Q retenu (JPEG/WebP) ; 100 = PNG sans perte, 0 = PNG palette 256 couleurs
     pub quality: u8,
     pub scale: f32,
     pub original_size_bytes: usize,
@@ -70,13 +131,103 @@ pub struct CompressionResult {
     pub gain_percent: u32,
 }
 
+/// Convertit en RGB en aplatissant la transparence sur fond blanc (JPEG ne gère pas l'alpha)
+fn to_rgb_on_white(img: &DynamicImage) -> RgbImage {
+    if !img.color().has_alpha() {
+        return img.to_rgb8();
+    }
+    let rgba = img.to_rgba8();
+    RgbImage::from_fn(rgba.width(), rgba.height(), |x, y| {
+        let [r, g, b, a] = rgba.get_pixel(x, y).0;
+        let blend = |c: u8| ((c as u16 * a as u16 + 255 * (255 - a as u16)) / 255) as u8;
+        image::Rgb([blend(r), blend(g), blend(b)])
+    })
+}
+
 /// Encode une DynamicImage en JPEG avec le facteur de qualité Q spécifié
 pub fn encode_jpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>, image::ImageError> {
-    let rgb = img.to_rgb8();
+    let rgb = to_rgb_on_white(img);
     let mut out = Vec::new();
     let mut cursor = Cursor::new(&mut out);
     let mut encoder = JpegEncoder::new_with_quality(&mut cursor, quality);
     encoder.encode_image(&rgb)?;
+    Ok(out)
+}
+
+/// Encode une DynamicImage en WebP avec perte (libwebp) au facteur de qualité Q
+pub fn encode_webp(img: &DynamicImage, quality: u8) -> Vec<u8> {
+    if img.color().has_alpha() {
+        let rgba = img.to_rgba8();
+        webp::Encoder::from_rgba(&rgba, rgba.width(), rgba.height())
+            .encode(quality as f32)
+            .to_vec()
+    } else {
+        let rgb = img.to_rgb8();
+        webp::Encoder::from_rgb(&rgb, rgb.width(), rgb.height())
+            .encode(quality as f32)
+            .to_vec()
+    }
+}
+
+/// Encode une DynamicImage en PNG sans perte, compression DEFLATE maximale
+pub fn encode_png_lossless(img: &DynamicImage) -> Result<Vec<u8>, image::ImageError> {
+    let mut out = Vec::new();
+    let encoder = PngEncoder::new_with_quality(
+        Cursor::new(&mut out),
+        CompressionType::Best,
+        PngFilterType::Adaptive,
+    );
+    if img.color().has_alpha() {
+        let rgba = img.to_rgba8();
+        encoder.write_image(
+            &rgba,
+            rgba.width(),
+            rgba.height(),
+            image::ExtendedColorType::Rgba8,
+        )?;
+    } else {
+        let rgb = img.to_rgb8();
+        encoder.write_image(
+            &rgb,
+            rgb.width(),
+            rgb.height(),
+            image::ExtendedColorType::Rgb8,
+        )?;
+    }
+    Ok(out)
+}
+
+/// Encode une DynamicImage en PNG indexé (palette de 256 couleurs quantifiée par NeuQuant).
+/// La transparence est conservée via le segment tRNS.
+pub fn encode_png_quantized(img: &DynamicImage) -> Result<Vec<u8>, png::EncodingError> {
+    let rgba = img.to_rgba8();
+    let quantizer = NeuQuant::new(10, 256, &rgba);
+    let indices: Vec<u8> = rgba
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|px| quantizer.index_of(px) as u8)
+        .collect();
+
+    let color_map = quantizer.color_map_rgba();
+    let (entries, _) = color_map.as_chunks::<4>();
+    let palette: Vec<u8> = entries.iter().flat_map(|c| [c[0], c[1], c[2]]).collect();
+    let alphas: Vec<u8> = entries.iter().map(|c| c[3]).collect();
+
+    let mut out = Vec::new();
+    let mut encoder = png::Encoder::new(&mut out, rgba.width(), rgba.height());
+    encoder.set_color(png::ColorType::Indexed);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_palette(palette);
+    if alphas.iter().any(|&a| a < 255) {
+        encoder.set_trns(alphas);
+    }
+    encoder.set_compression(png::Compression::High);
+    // Les images à palette se compressent mieux sans filtre de prédiction
+    encoder.set_filter(png::Filter::NoFilter);
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&indices)?;
+    writer.finish()?;
     Ok(out)
 }
 
@@ -90,7 +241,7 @@ pub fn resize_adaptive(img: &DynamicImage, scale: f32) -> DynamicImage {
     img.resize_exact(width.max(1), height.max(1), imageops::FilterType::Lanczos3)
 }
 
-/// Recherche dichotomique du facteur de qualité Q dans [q_min, q_max]
+/// Recherche dichotomique du facteur de qualité Q dans [q_min, q_max] (encodage JPEG)
 /// Privilégie la plus haute qualité dans la fourchette cible [size_min, size_max]
 pub fn binary_search_quality(
     img: &DynamicImage,
@@ -100,13 +251,37 @@ pub fn binary_search_quality(
     size_min: usize,
     size_max: usize,
 ) -> Option<(u8, Vec<u8>)> {
+    binary_search_quality_with(
+        img,
+        original_size,
+        q_min,
+        q_max,
+        size_min,
+        size_max,
+        |i, q| encode_jpeg(i, q).ok(),
+    )
+}
+
+/// Recherche dichotomique du facteur Q avec un encodeur avec perte quelconque (JPEG, WebP)
+pub fn binary_search_quality_with<E>(
+    img: &DynamicImage,
+    original_size: usize,
+    q_min: u8,
+    q_max: u8,
+    size_min: usize,
+    size_max: usize,
+    encode: E,
+) -> Option<(u8, Vec<u8>)>
+where
+    E: Fn(&DynamicImage, u8) -> Option<Vec<u8>>,
+{
     let mut low = q_min;
     let mut high = q_max;
     let mut best: Option<(u8, Vec<u8>)> = None;
 
     while low <= high {
         let mid = (low + high) / 2;
-        let bytes = encode_jpeg(img, mid).ok()?;
+        let bytes = encode(img, mid)?;
         let size = bytes.len();
 
         if size > size_max {
@@ -176,13 +351,30 @@ pub fn inject_exif(jpeg: Vec<u8>, exif: &[u8]) -> Vec<u8> {
     result
 }
 
+/// Lit le tag EXIF Orientation (1 à 8) du conteneur source
+fn read_exif_orientation(bytes: &[u8]) -> Option<Orientation> {
+    let exif = exif::Reader::new()
+        .read_from_container(&mut Cursor::new(bytes))
+        .ok()?;
+    let value = exif
+        .get_field(exif::Tag::Orientation, exif::In::PRIMARY)?
+        .value
+        .get_uint(0)?;
+    Orientation::from_exif(u8::try_from(value).ok()?)
+}
+
 /// Décode une image depuis les octets en mémoire avec fallback FFmpeg pour les formats exotiques (HEIC, AVIF, SVG, RAW...)
 pub fn load_image_with_fallback(
     bytes: &[u8],
     path: &Path,
 ) -> Result<DynamicImage, ImageEngineError> {
+    decode_image(bytes, path).map(|(img, _)| img)
+}
+
+/// Décode l'image ; le booléen indique si le décodage natif (crate image) a réussi
+fn decode_image(bytes: &[u8], path: &Path) -> Result<(DynamicImage, bool), ImageEngineError> {
     if let Ok(img) = image::load_from_memory(bytes) {
-        return Ok(img);
+        return Ok((img, true));
     }
 
     // Fallback FFmpeg : décoder une image complexe (HEIC, AVIF, RAW, SVG, etc.) en PNG standard via un tube mémoire
@@ -199,11 +391,68 @@ pub fn load_image_with_fallback(
         .and_then(|o| image::load_from_memory(&o.stdout).ok());
 
     if let Some(img) = maybe_img {
-        return Ok(img);
+        return Ok((img, false));
     }
 
     image::load_from_memory(bytes)
+        .map(|img| (img, true))
         .map_err(|e| ImageEngineError::ImageDecodeError(path.to_path_buf(), e))
+}
+
+/// Ordre de recherche préconisé : commence par scale = 1.0 afin de préserver au maximum la résolution
+const SCALES: [f32; 6] = [1.0, 0.85, 0.70, 0.60, 0.50, 0.40];
+
+/// Recherche (Q, échelle) pour un format avec perte : premier couple qui tient dans la cible
+fn search_lossy(
+    img: &DynamicImage,
+    format: ImageOutputFormat,
+    original_size: usize,
+    options: &ImageCompressionOptions,
+) -> Option<(u8, f32, Vec<u8>)> {
+    SCALES.iter().find_map(|&scale| {
+        let resized = resize_adaptive(img, scale);
+        binary_search_quality_with(
+            &resized,
+            original_size,
+            options.q_min,
+            options.q_max,
+            options.target_min_bytes as usize,
+            options.target_max_bytes as usize,
+            |i, q| match format {
+                ImageOutputFormat::Webp => Some(encode_webp(i, q)),
+                _ => encode_jpeg(i, q).ok(),
+            },
+        )
+        .map(|(q, bytes)| (q, scale, bytes))
+    })
+}
+
+/// Recherche PNG : sans perte à pleine résolution si cela tient sous `size_max`,
+/// sinon palette 256 couleurs avec réduction d'échelle progressive.
+/// PNG n'ayant pas de facteur Q, la plus petite version est retenue si aucune ne tient.
+fn search_png(img: &DynamicImage, size_max: usize) -> Option<(u8, f32, Vec<u8>)> {
+    let lossless = encode_png_lossless(img).ok();
+    if let Some(bytes) = lossless.as_ref().filter(|b| b.len() <= size_max) {
+        return Some((100, 1.0, bytes.clone()));
+    }
+
+    let mut smallest: Option<(u8, f32, Vec<u8>)> = lossless.map(|b| (100, 1.0, b));
+    for &scale in &SCALES {
+        let resized = resize_adaptive(img, scale);
+        let Ok(bytes) = encode_png_quantized(&resized) else {
+            continue;
+        };
+        if bytes.len() <= size_max {
+            return Some((0, scale, bytes));
+        }
+        if smallest
+            .as_ref()
+            .is_none_or(|(_, _, s)| bytes.len() < s.len())
+        {
+            smallest = Some((0, scale, bytes));
+        }
+    }
+    smallest
 }
 
 /// Compresse une image unique en appliquant l'algorithme adaptatif multi-échelle et dichotomique
@@ -216,59 +465,62 @@ pub fn compress_single_image(
         fs::read(input_path).map_err(|e| ImageEngineError::IoError(input_path.to_path_buf(), e))?;
     let original_size = original_bytes.len();
 
-    let img = load_image_with_fallback(&original_bytes, input_path)?;
+    let (mut img, decoded_natively) = decode_image(&original_bytes, input_path)?;
+    let (format, _) = options.output_format.resolve(input_path);
 
-    let exif = if options.preserve_exif {
+    // Le bloc EXIF n'est réinjecté que dans un JPEG. Sans lui, l'orientation est
+    // appliquée aux pixels pour que les photos de smartphone restent droites.
+    // (Le repli FFmpeg applique déjà la rotation : ne pas la doubler.)
+    let exif = if options.preserve_exif && format == ImageOutputFormat::Jpeg {
         extract_exif(&original_bytes)
     } else {
         None
     };
-
-    // Ordre de recherche préconisé : commence par scale = 1.0 afin de préserver au maximum la résolution
-    let scales = [1.0_f32, 0.85, 0.70, 0.60, 0.50, 0.40];
-
-    for &scale in &scales {
-        let resized = resize_adaptive(&img, scale);
-        if let Some((quality, mut bytes)) = binary_search_quality(
-            &resized,
-            original_size,
-            options.q_min,
-            options.q_max,
-            options.target_min_bytes as usize,
-            options.target_max_bytes as usize,
-        ) {
-            if let Some(ex) = exif.as_ref().filter(|_| options.preserve_exif) {
-                bytes = inject_exif(bytes, ex);
-            }
-
-            if let Some(parent) = output_path.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-
-            fs::write(output_path, &bytes)
-                .map_err(|e| ImageEngineError::IoError(output_path.to_path_buf(), e))?;
-
-            let final_size = bytes.len();
-            let gain_percent = if original_size > 0 && final_size < original_size {
-                (((original_size - final_size) as f64 / original_size as f64) * 100.0) as u32
-            } else {
-                0
-            };
-
-            return Ok(CompressionResult {
-                output_path: output_path.to_path_buf(),
-                quality,
-                scale,
-                original_size_bytes: original_size,
-                final_size_bytes: final_size,
-                gain_percent,
-            });
-        }
+    if exif.is_none()
+        && decoded_natively
+        && let Some(orientation) = read_exif_orientation(&original_bytes)
+    {
+        img.apply_orientation(orientation);
     }
 
-    Err(ImageEngineError::CalibrationFailed(
-        input_path.to_path_buf(),
-    ))
+    let (quality, scale, mut bytes) = match format {
+        ImageOutputFormat::Png => search_png(&img, options.target_max_bytes as usize),
+        _ => search_lossy(&img, format, original_size, options),
+    }
+    .ok_or_else(|| ImageEngineError::CalibrationFailed(input_path.to_path_buf()))?;
+
+    if let Some(ex) = exif.as_ref() {
+        bytes = inject_exif(bytes, ex);
+    }
+
+    // Garde-fou : à format identique, ne jamais livrer un fichier plus lourd que l'original
+    if ImageOutputFormat::from_source(input_path) == Some(format) && bytes.len() >= original_size {
+        bytes = original_bytes;
+    }
+
+    if let Some(parent) = output_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    fs::write(output_path, &bytes)
+        .map_err(|e| ImageEngineError::IoError(output_path.to_path_buf(), e))?;
+
+    let final_size = bytes.len();
+    let gain_percent = if original_size > 0 && final_size < original_size {
+        (((original_size - final_size) as f64 / original_size as f64) * 100.0) as u32
+    } else {
+        0
+    };
+
+    Ok(CompressionResult {
+        output_path: output_path.to_path_buf(),
+        format,
+        quality,
+        scale,
+        original_size_bytes: original_size,
+        final_size_bytes: final_size,
+        gain_percent,
+    })
 }
 
 /// Traitement parallélisé d'un lot d'images avec Rayon
@@ -309,11 +561,13 @@ where
                     None,
                 );
 
+                let (_, output_ext) = options.output_format.resolve(path);
                 let dest_path = crate::export_engine::resolve_export_path(
                     path,
                     output_dir,
                     export_mode,
                     folder_timestamp,
+                    Some(&output_ext),
                 );
 
                 match compress_single_image(path, &dest_path, options) {
@@ -434,6 +688,7 @@ mod tests {
             q_max: 92,
             threads: 2,
             preserve_exif: false,
+            output_format: ImageOutputFormat::Jpeg,
         };
 
         let res =
@@ -465,6 +720,7 @@ mod tests {
             q_max: 92,
             threads: 2,
             preserve_exif: false,
+            output_format: ImageOutputFormat::Jpeg,
         };
 
         let res =
@@ -475,5 +731,150 @@ mod tests {
         let _ = fs::remove_file(in_png);
         let _ = fs::remove_file(out_jpg);
         let _ = fs::remove_dir(temp_dir);
+    }
+    fn compress_to(
+        name: &str,
+        img: &DynamicImage,
+        source_format: image::ImageFormat,
+        output_format: ImageOutputFormat,
+    ) -> (CompressionResult, Vec<u8>) {
+        let temp_dir = std::env::temp_dir().join(format!("go_compressor_fmt_{name}"));
+        let _ = fs::create_dir_all(&temp_dir);
+        let ext = source_format.extensions_str()[0];
+        let in_path = temp_dir.join(format!("source.{ext}"));
+        img.save_with_format(&in_path, source_format)
+            .expect("écriture source");
+        let (_, out_ext) = output_format.resolve(&in_path);
+        let out_path = temp_dir.join(format!("sortie.{out_ext}"));
+
+        let options = ImageCompressionOptions {
+            target_min_bytes: 1_000,
+            target_max_bytes: 500_000,
+            output_format,
+            preserve_exif: false,
+            ..Default::default()
+        };
+        let res = compress_single_image(&in_path, &out_path, &options).expect("compression");
+        let bytes = fs::read(&out_path).expect("lecture sortie");
+        let _ = fs::remove_dir_all(&temp_dir);
+        (res, bytes)
+    }
+
+    #[test]
+    fn test_output_format_resolution() {
+        let png = Path::new("/a/capture.png");
+        let heic = Path::new("/a/iphone.heic");
+        let jpeg = Path::new("/a/photo.jpeg");
+        assert_eq!(
+            ImageOutputFormat::Auto.resolve(png),
+            (ImageOutputFormat::Png, "png".into())
+        );
+        assert_eq!(
+            ImageOutputFormat::Auto.resolve(heic),
+            (ImageOutputFormat::Jpeg, "jpg".into())
+        );
+        assert_eq!(
+            ImageOutputFormat::Jpeg.resolve(jpeg),
+            (ImageOutputFormat::Jpeg, "jpeg".into())
+        );
+        assert_eq!(
+            ImageOutputFormat::Webp.resolve(png),
+            (ImageOutputFormat::Webp, "webp".into())
+        );
+    }
+
+    #[test]
+    fn test_png_source_to_webp_produces_real_webp() {
+        let img = create_test_image(300, 300);
+        let (res, bytes) = compress_to(
+            "webp",
+            &img,
+            image::ImageFormat::Png,
+            ImageOutputFormat::Webp,
+        );
+        assert_eq!(res.format, ImageOutputFormat::Webp);
+        assert_eq!(&bytes[..4], b"RIFF");
+        assert_eq!(&bytes[8..12], b"WEBP");
+        let decoded = image::load_from_memory(&bytes).expect("WebP décodable");
+        assert_eq!((decoded.width(), decoded.height()), (300, 300));
+    }
+
+    #[test]
+    fn test_jpeg_output_contains_real_jpeg_bytes() {
+        let img = create_test_image(300, 300);
+        let (_, bytes) = compress_to(
+            "jpeg",
+            &img,
+            image::ImageFormat::Png,
+            ImageOutputFormat::Jpeg,
+        );
+        assert_eq!(&bytes[..2], &[0xFF, 0xD8]);
+    }
+
+    #[test]
+    fn test_png_output_keeps_transparency() {
+        let mut rgba = image::RgbaImage::new(200, 200);
+        for (x, y, px) in rgba.enumerate_pixels_mut() {
+            *px = image::Rgba([
+                (x % 256) as u8,
+                (y % 256) as u8,
+                120,
+                if x < 100 { 0 } else { 255 },
+            ]);
+        }
+        let img = DynamicImage::ImageRgba8(rgba);
+        let (res, bytes) =
+            compress_to("png", &img, image::ImageFormat::Png, ImageOutputFormat::Png);
+        assert_eq!(res.format, ImageOutputFormat::Png);
+        assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
+        let decoded = image::load_from_memory(&bytes)
+            .expect("PNG décodable")
+            .to_rgba8();
+        assert_eq!(
+            decoded.get_pixel(10, 10).0[3],
+            0,
+            "zone transparente perdue"
+        );
+        assert_eq!(decoded.get_pixel(150, 10).0[3], 255);
+    }
+
+    #[test]
+    fn test_png_quantization_reduces_size() {
+        // Image « photographique » : dégradé + bruit, des milliers de couleurs
+        let mut seed: u32 = 42;
+        let rgb = RgbImage::from_fn(400, 400, |x, y| {
+            seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+            let n = ((seed >> 16) % 24) as u8;
+            Rgb([
+                (x / 2) as u8 + n,
+                (y / 2) as u8 + n,
+                ((x + y) / 4) as u8 + n,
+            ])
+        });
+        let img = DynamicImage::ImageRgb8(rgb);
+        let lossless = encode_png_lossless(&img).expect("png sans perte");
+        let quantized = encode_png_quantized(&img).expect("png palette");
+        assert!(quantized.len() < lossless.len());
+    }
+
+    #[test]
+    fn test_same_format_output_never_heavier_than_source() {
+        // Petit JPEG très compressé : le réencodage à Q élevé serait plus lourd
+        let temp_dir = std::env::temp_dir().join("go_compressor_never_heavier");
+        let _ = fs::create_dir_all(&temp_dir);
+        let in_path = temp_dir.join("petit.jpg");
+        let out_path = temp_dir.join("petit_opt.jpg");
+        let source = encode_jpeg(&create_test_image(200, 200), 30).expect("encode");
+        fs::write(&in_path, &source).expect("write");
+
+        let options = ImageCompressionOptions {
+            target_min_bytes: 1_000,
+            target_max_bytes: 500_000,
+            preserve_exif: false,
+            ..Default::default()
+        };
+        let res = compress_single_image(&in_path, &out_path, &options).expect("compression");
+        assert!(res.final_size_bytes <= source.len());
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

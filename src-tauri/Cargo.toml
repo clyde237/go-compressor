@@ -26,6 +26,9 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 sysinfo = "0.33"
 thiserror = "2"
 kamadak-exif = "0.5"
+webp = { version = "0.3", default-features = false }
+color_quant = "1.1"
+png = "0.18"
 
 [dev-dependencies]
 tempfile = "3"

@@ -359,10 +359,13 @@ export function useMediaBatch(): UseMediaBatchResult {
     }
 
     try {
-      const ext = item.format.toLowerCase();
+      // Le format de sortie peut différer de la source (ex. PNG -> WebP) : partir du fichier produit
+      const fileName = sourcePath.split(/[/\\]/).pop() || item.name;
+      const dotIdx = fileName.lastIndexOf('.');
+      const ext = dotIdx > 0 ? fileName.slice(dotIdx + 1).toLowerCase() : item.format.toLowerCase();
       const savePath = await save({
-        defaultPath: item.name,
-        filters: [{ name: `Média ${item.format}`, extensions: [ext] }],
+        defaultPath: fileName,
+        filters: [{ name: `Média ${ext.toUpperCase()}`, extensions: [ext] }],
       });
 
       if (savePath) {

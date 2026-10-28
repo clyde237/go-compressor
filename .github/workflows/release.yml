@@ -121,8 +121,10 @@ jobs:
 
             ### Nouveautés de la version v__VERSION__
             - Moteur de compression d'images multi-cœurs (Rayon) avec calibrage précis à la taille cible (800 Ko – 2 Mo) par recherche dichotomique.
-            - File d'attente séquentielle stricte pour le transcodage vidéo H.264 (FFmpeg sidecar) plafonnée à 20 vidéos maximum.
-            - Préservation stricte de la piste audio stéréo (AAC 128k, downmix stéréo 44.1 kHz).
+            - Choix du format de sortie : JPEG, WebP ou PNG pour les images ; MP4, MKV, MOV ou WebM (H.264, H.265, VP9) pour les vidéos.
+            - Compression vidéo à taille garantie : plafond de débit calculé depuis la source (≤ 50 % de l'original par défaut) et réduction de résolution optionnelle.
+            - File d'attente séquentielle stricte pour le transcodage vidéo (FFmpeg sidecar) plafonnée à 20 vidéos maximum.
+            - Préservation stricte de la piste audio stéréo (AAC jusqu'à 128k, Opus en WebM).
             - Restitution non-destructive des médias : sauvegarde par copie, suffixe `_opt` ou sous-dossier horodaté.
             - Export et téléchargement direct d'archives ZIP sécurisées.
             - Télémétrie système CPU & RAM continue en direct.

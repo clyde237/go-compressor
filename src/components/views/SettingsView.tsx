@@ -151,7 +151,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <h2 className="gc-h2">Moteur vidéo — FFmpeg</h2>
             <p className="gc-muted" style={{ margin: '4px 0 0', fontSize: '15px', lineHeight: '22px' }}>
-              Encodage H.264 asynchrone, une vidéo à la fois, pour éviter toute saturation mémoire ou thermique.
+              Encodage H.264, H.265 ou VP9 asynchrone, une vidéo à la fois, pour éviter toute saturation mémoire ou thermique.
+              Le format, le codec et la taille maximale se règlent dans l'onglet Vidéos du tableau de bord.
             </p>
           </div>
           <Badge>Max 20 vidéos par lot</Badge>
@@ -161,12 +162,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           id="s-crf"
           label="Facteur d'encodage CRF"
           displayValue={`CRF ${settings.crf}`}
-          min={23}
-          max={28}
+          min={18}
+          max={32}
           value={settings.crf}
-          minLabel="23 (qualité max)"
-          maxLabel="28 (compression max)"
-          helpText="Plus le CRF est bas, plus la qualité est haute et le fichier lourd."
+          minLabel="18 (qualité max)"
+          maxLabel="32 (compression max)"
+          helpText="Qualité plancher (échelle H.264, convertie pour H.265 et VP9). Plus le CRF est bas, plus la qualité est haute. Le plafond de taille du tableau de bord reste prioritaire."
           onChange={(v) => onUpdateSettings({ crf: v })}
         />
       </div>

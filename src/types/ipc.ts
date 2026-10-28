@@ -5,6 +5,15 @@
 
 export type ExportMode = 'copy' | 'suffix' | 'folder';
 
+/** Format des images produites ('auto' = format source si JPEG/PNG/WebP, sinon JPEG) */
+export type ImageFormat = 'auto' | 'jpeg' | 'webp' | 'png';
+
+/** Codec vidéo de sortie */
+export type VideoCodec = 'h264' | 'h265' | 'vp9';
+
+/** Conteneur vidéo de sortie ('auto' = conteneur source si MP4/MKV/MOV/WebM, sinon MP4) */
+export type VideoContainer = 'auto' | 'mp4' | 'mkv' | 'mov' | 'webm';
+
 export interface BatchSettings {
   targetMinBytes: number;
   targetMaxBytes: number;
@@ -25,10 +34,15 @@ export interface BatchConfig {
   q_min: number; // 65
   q_max: number; // 92
   threads: number; // 1 à 8
-  crf: number; // 23 à 28
+  crf: number; // 18 à 32 (échelle x264, convertie par codec)
   export_mode: ExportMode;
   preserve_exif: boolean;
   output_directory: string;
+  image_format: ImageFormat;
+  video_codec: VideoCodec;
+  video_container: VideoContainer;
+  video_max_size_percent: number; // 10 à 100 (100 = pas de plafond de débit)
+  video_max_height: number; // plus petit côté max en pixels, 0 = résolution d'origine
 }
 
 export interface CompressionProgressPayload {

@@ -239,6 +239,11 @@ describe('useMediaBatch Hook', () => {
         preserve_exif: true,
         export_mode: 'copy',
         output_directory: '/export',
+        image_format: 'jpeg',
+        video_codec: 'h264',
+        video_container: 'auto',
+        video_max_size_percent: 50,
+        video_max_height: 0,
       });
     });
 
@@ -438,6 +443,11 @@ describe('useMediaBatch Hook', () => {
           preserve_exif: true,
           export_mode: 'copy',
           output_directory: '/export',
+          image_format: 'jpeg',
+          video_codec: 'h264',
+          video_container: 'auto',
+          video_max_size_percent: 50,
+          video_max_height: 0,
         });
       });
 
@@ -513,6 +523,34 @@ describe('useMediaBatch Hook', () => {
         destination: '/dest/image_perso.jpg',
       });
       expect(result.current.alert?.title).toBe('Fichier enregistré avec succès');
+    });
+
+    it('propose le nom et l\'extension du fichier optimisé lors de l\'enregistrement', async () => {
+      vi.mocked(save).mockResolvedValueOnce('/dest/capture.webp');
+      vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+      const { result } = renderHook(() => useMediaBatch());
+
+      act(() => {
+        result.current.addFilesFromPaths(['/path/capture.png'], 'images');
+      });
+
+      await act(async () => {
+        await result.current.saveSingleFile({
+          ...result.current.files[0],
+          status: 'done',
+          outputPath: '/export/capture.webp',
+        });
+      });
+
+      expect(save).toHaveBeenCalledWith({
+        defaultPath: 'capture.webp',
+        filters: [{ name: 'Média WEBP', extensions: ['webp'] }],
+      });
+      expect(invoke).toHaveBeenCalledWith('save_file_to', {
+        source: '/export/capture.webp',
+        destination: '/dest/capture.webp',
+      });
     });
 
     it('met à jour la progression lors de la réception dun événement compression-progress', async () => {

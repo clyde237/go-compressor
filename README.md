@@ -34,13 +34,17 @@ Conçue sur une architecture moderne couplant **Tauri v2**, **React.js 19 (TypeS
 - **Optimisation d'Images par Recherche Dichotomique :**
   - Ajustement automatique et dynamique du facteur de qualité ($Q \in [65, 92]$) afin de ramener des images lourdes ($\sim 15\text{ Mo}$) dans la fourchette cible stricte de **800 Ko à 2 Mo** (gain moyen de $85\%$ à $95\%$).
   - Prise en charge native des formats **JPG / JPEG**, **PNG** et **WebP**.
+  - **Format de sortie au choix** : JPEG (défaut, seul format conservant l'EXIF), WebP avec perte (libwebp), PNG (sans perte, sinon palette 256 couleurs) ou identique à la source. L'extension du fichier produit correspond toujours à son contenu réel.
+  - Garde-fou : à format identique, le fichier livré n'est jamais plus lourd que l'original.
   - Traitement parallélisé sur tous les cœurs du processeur grâce à `rayon`.
   - Option de conservation des métadonnées EXIF (date, orientation, appareil photo).
 
 - **Transcodage Vidéo Séquentiel Anti-Surcharge :**
   - Prise en charge des conteneurs vidéo courants (**MP4**, **MOV**, **MKV**, **AVI**).
   - Traitement strictement séquentiel (une vidéo à la fois) piloté de manière asynchrone via `tokio::process`.
-  - Encodage optimisé H.264 avec facteur de qualité constante (**CRF 23 à 28**) pour préserver la RAM et le processeur d'un emballement thermique.
+  - **Codec au choix** : H.264 (compatibilité maximale), H.265/HEVC (~40 % plus léger) ou VP9 ; **conteneur au choix** : MP4, MKV, MOV, WebM ou identique à la source. Les codecs absents du FFmpeg embarqué sont détectés et désactivés.
+  - **CRF plafonné** : le CRF (18 à 32) fixe la qualité plancher, et un plafond de débit calculé depuis la source garantit une sortie ≤ *N* % de l'original (50 % par défaut). Le CRF seul vise une qualité, pas une taille : une vidéo déjà compressée (HEVC de smartphone) ré-encodée au CRF 26 ne perdait que quelques pourcents.
+  - Réduction de résolution optionnelle (4K, 1440p, 1080p, 720p, 480p), compatible paysage et portrait.
 
 - **Expérience Utilisateur Temps Réel :**
   - Import fluide par **glisser-déposer (Drag & Drop)** ou explorateur natif.
@@ -60,7 +64,7 @@ Conçue sur une architecture moderne couplant **Tauri v2**, **React.js 19 (TypeS
 | :--- | :--- | :--- |
 | **Plafond par lot** | **50 images maximum** | **20 vidéos maximum** (Plafond strict anti-saturation) |
 | **Contrôle de dépassement** | Alerte modale bloquante UI + rejet backend | Alerte modale bloquante immédiate à l'import de la 21ᵉ vidéo |
-| **Gabarit cible en sortie** | **800 Ko à 2 Mo** par image | Encodage adaptatif optimisé via profil CRF (23-28) |
+| **Gabarit cible en sortie** | **800 Ko à 2 Mo** par image | ≤ 50 % de l'original par défaut (plafond réglable de 10 à 100 %), qualité plancher CRF 18-32 |
 | **Taux de compression visé** | Réduction de **$85\%$ à $95\%$** sur fichiers HD ($\sim 15\text{ Mo}$) | Réduction sans dégradation de fluidité ni de netteté |
 | **Mode d'exécution** | Multi-threadé CPU en parallèle (`rayon`) | File d'attente FIFO séquentielle (1 flux à la fois) |
 
@@ -122,7 +126,7 @@ L'interface utilisateur est centrée sur l'efficacité opérationnelle avec une 
 
 2. **Paramètres (Réglages avancés) :**
    - Réglages fins des moteurs Rust : curseurs $Q_{\min}$, $Q_{\max}$, nombre de threads `rayon`, banc interactif visualisant les étapes de la recherche dichotomique.
-   - Curseur de qualité vidéo (CRF 23-28).
+   - Curseur de qualité vidéo (CRF 18-32, échelle H.264 convertie pour H.265 et VP9).
    - Choix du comportement d'écriture non-destructive (copie, suffixe `_opt`, sous-dossier horodaté) et conservation des métadonnées EXIF.
 
 ---
